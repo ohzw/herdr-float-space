@@ -66,6 +66,10 @@ function release(owner) {
 }
 
 function stop(_event, cx) { cx.stop_propagation(); }
+// A press on the header's own controls puts the keyboard in the window too.
+function grab(view) {
+  return (_event, cx) => { cx.stop_propagation(); view.handle?.focus(); };
+}
 function focusKey() {
   const now = focused();
   return `${now?.pane}|${now?.terminal}`;
@@ -133,10 +137,18 @@ export default class FloatSpace extends View {
         memory.reconciled = seen;
         act("reconcile");
       });
-      // Nothing announces focus moving into or out of this window; check cheaply
-      // and redraw only on a change.
-      cx.timer.every(250, cx => {
+      // Nothing announces focus moving into or out of this window: check cheaply
+      // and let the border blocks redraw on a change.
+      cx.timer.every(150, cx => {
         const keyboard = this.keyboard();
+        windowShared().keyboard = keyboard;
+        if (keyboard === this.hadKeyboard) return;
+        this.hadKeyboard = keyboard;
+        cx.notify();
+      });
+    } else if (this.role === "edge") {
+      cx.timer.every(100, cx => {
+        const keyboard = Boolean(windowShared().keyboard);
         if (keyboard === this.hadKeyboard) return;
         this.hadKeyboard = keyboard;
         cx.notify();
@@ -181,6 +193,7 @@ export default class FloatSpace extends View {
     // Last: it may wait for core. Work started from here is cancelled with
     // this copy, so it must not hand over to another copy.
     if (this.role === "bar") {
+      if (this.copyProps.generation === windowShared().controller.generation) windowShared().keyboard = false;
       try { await windowShared().controller.windowClosed(host(), this.copyProps.generation); }
       catch (error) { notify({ title: "Float Space", body: String(error?.message ?? error), level: "error" }); }
     }
@@ -200,18 +213,17 @@ export default class FloatSpace extends View {
     return h_flex().id(id).size(22).items_center().justify_center().flex_none().rounded(6).text_color(t.dim)
       .cursor_pointer().hover(s => s.bg(t.hover).text_color(t.foreground))
       .tooltip(label).accessibility_label(label)
-      .on_mouse_down("left", (event, cx) => { cx.stop_propagation(); this.pointer = event.position; press?.(); }).on_click(action)
+      .on_mouse_down("left", (event, cx) => { cx.stop_propagation(); this.handle?.focus(); this.pointer = event.position; press?.(); }).on_click(action)
       .child(svg(`mods/float-space/${icon}.svg`).size(14));
   }
 
-  // A tab as Herdr's tab bar draws one, sized for a 30px header. The selected
-  // tab's border turns accent while the keyboard is in this window.
-  tab(id, icon, label, active, action, extra = [], keyboard = false) {
+  // A tab as Herdr's tab bar draws one, sized for a 30px header.
+  tab(id, icon, label, active, action, extra = []) {
     const t = theme();
     return h_flex().id(id).h(22).px(8).gap(6).flex_none().items_center().rounded(6)
-      .border_1().border_color(active ? keyboard ? t.accent : t.border : t.background).bg(active ? t.raised : t.background)
+      .border_1().border_color(active ? t.border : t.background).bg(active ? t.raised : t.background)
       .text_color(active ? t.foreground : t.muted).cursor_pointer().hover(s => s.bg(t.hover))
-      .on_mouse_down("left", stop).on_click(action)
+      .on_mouse_down("left", grab(this)).on_click(action)
       .when(Boolean(icon), el => el.child(icon))
       .child(div().max_w(135).truncate().child(label))
       .children(extra);
@@ -256,7 +268,7 @@ export default class FloatSpace extends View {
     const state = readState(shared(STATE_KEY));
     const live = terminals();
     const notes = state.page === "notes";
-    const keyboard = this.keyboard();
+    const ring = this.keyboard() ? t.accent : t.input;
     const tabs = state.tabs.map(tab => {
       const terminal = live.find(item => item.address === tab.address);
       const name = tabName(tab, terminal);
@@ -268,23 +280,35 @@ export default class FloatSpace extends View {
             : status === "blocked" || status === "done" ? div().size(6).flex_none().rounded(3).bg(t[status]) : null,
           active ? div().id(`float-end-${tab.address}`).flex_none().text_color(t.dim).hover(s => s.text_color(t.foreground))
             .tooltip(`Close ${name}`).accessibility_label(`Close ${name}`)
-            .on_mouse_down("left", stop).on_click((_e, cx) => { cx.stop_propagation(); act(`end-${tab.address}`); })
+            .on_mouse_down("left", grab(this)).on_click((_e, cx) => { cx.stop_propagation(); act(`end-${tab.address}`); })
             .child(svg("mods/float-space/close.svg").size(12)) : null,
-        ].filter(Boolean), keyboard);
+        ].filter(Boolean));
     });
     // Notes can't be closed, so it leads the header where a title would be; the
-    // terminal tabs follow. Free strip space drags the window. The bottom line
-    // turns accent while the keyboard is here, as a focused pane's border does.
-    return h_flex().id("float-space-bar").track_focus(this.handle).on_mouse_down_out(event => this.notePress(event))
-      .size_full().px(6).gap(6).items_center()
-      .bg(t.background).border_b(1).border_color(keyboard ? t.accent : t.border).text_color(t.foreground).text_size(12)
+    // terminal tabs follow. Free strip space drags the window. The outer edge is
+    // the top of the window's border; the line under the tabs stays neutral.
+    return v_flex().id("float-space-bar").track_focus(this.handle).on_mouse_down_out(event => this.notePress(event))
+      .on_mouse_down("left", () => this.handle.focus())
+      .size_full().bg(t.background).border_t(1).border_l(1).border_r(1).rounded_t(10).border_color(ring)
+      .child(h_flex().flex_1().min_h(0).px(6).gap(6).items_center().border_b(1).border_color(t.border)
+      .text_color(t.foreground).text_size(12)
       .child(this.tab("float-notes-tab", svg("mods/float-space/notes.svg").size(14).flex_none().text_color(notes ? t.foreground : t.muted), "Notes",
-        notes, () => act("notes"), [], keyboard).tooltip("Notes shared across your spaces"))
+        notes, () => act("notes")).tooltip("Notes shared across your spaces"))
       .when(tabs.length > 0, el => el.child(div().w(1).h(14).flex_none().bg(t.border)))
       .child(h_flex().id("float-terminal-tabs").flex_1().h_full().min_w(0).items_center().gap(2).overflow_x_scrollbar().children(tabs))
       .child(this.iconButton("float-new-terminal", "plus", "New terminal", () => act("new")))
       .child(this.iconButton("float-size", "size", "Window size", () => this.toggleSize(), () => this.pressSize()))
-      .child(this.iconButton("float-hide", "hide", "Hide · Ctrl+Shift+Space", () => act("hide")));
+      .child(this.iconButton("float-hide", "hide", "Hide · Ctrl+Shift+Space", () => act("hide"))));
+  }
+
+  // The window's sides and bottom, in the header's border color.
+  renderEdge() {
+    const t = theme();
+    const ring = windowShared().keyboard ? t.accent : t.input;
+    if (this.copyProps.side === "bottom") {
+      return div().size_full().bg(t.background).border_b(1).border_l(1).border_r(1).rounded_b(10).border_color(ring);
+    }
+    return div().size_full().bg(ring);
   }
 
   // The terminals' font and size from Herdr's settings, so Notes reads like the
@@ -336,6 +360,7 @@ export default class FloatSpace extends View {
     if (this.role === "bar") return this.renderBar();
     if (this.role === "notes") return this.renderNotes();
     if (this.role === "size") return this.renderSize();
+    if (this.role === "edge") return this.renderEdge();
     if (this.role === "run") return div();
     return this.renderLauncher();
   }

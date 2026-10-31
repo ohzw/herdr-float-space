@@ -36,19 +36,19 @@ matched the installer's record again.
 | `hc kill` of the shown terminal, before the fix | Herdr closed the window while `terminals()` still listed the terminal as live; the window stayed closed |
 | Handing that check from the header's `close()` to a new command copy | The copy hung on its first `hc` call and ran only after the next reload |
 | Asking core inside the header's `close()`, twice | Reopened on the next tab 14–15 ms after the close |
-| Header bottom line | `accent` `(97,175,239)` with the header focused, on a terminal and on Notes; `border` `(54,58,63)` while the size popup had focus |
-| Window border | 1px `input`, `(64,68,73)` in Atom One Dark |
-| Header | Notes icon and label, divider, terminal tabs with program icons; selected tab outlined in accent while focused |
+| Window border drawn by the mod's own blocks (header top, 1px sides, 10px bottom band) | Continuous all the way round, corners included; `accent` `(97,175,239)` right after opening, `input` `(64,68,73)` on all four sides after `pane.focus` moved the keyboard to a pane outside |
+| Header | Notes icon and label, divider, terminal tabs with program icons |
 | Notes | Terminal font from settings (JetBrains Mono 14) |
 | Size popup | Three presets; the current size outlined |
 | A former 32 × 90 preset with a single window key | Reopened at the remembered spot (424, 353) and ran about 210 px past the app's bottom edge |
 | 32 × 90 and 50 × 60 with one key per size | Each opened centered; 32 × 90 at about (870, 71), inside the app |
-| Focus, traced while the person clicked into the window's terminal, then a pane outside, and typed | `focused()` kept naming the pane underneath after the click into the window, so the line stayed `border` while typing went into the window; outside, typing reached the pane and the line was `border`. The header now decides from presses (`on_mouse_down_out`) |
+| Focus, traced while the person clicked into the window's terminal, then a pane outside, and typed | `focused()` kept naming the pane underneath after the click into the window, so focus stayed unmarked while typing went into the window; outside, typing reached the pane. The header now decides from presses (`on_mouse_down_out`) |
 | Installed with `scripts/install.py --update`, no layout file | No mod errors in `herdr-app status` |
 
-Not checked with real input in this build: the press-based focus line,
-the Small preset (20 × 50), clicking Notes, presets, ×, the size button a
-second time, dragging the window, and typing into Notes. A
+Not checked with real input in this build: the border following clicks
+into and out of the window and on header tabs, the Small preset (20 × 50),
+clicking Notes, presets, ×, the size button a second time, dragging the
+window, and typing into Notes. A
 core reply slower than the 250 ms Herdr gives `close()` would leave the
 window closed until the next press.
 

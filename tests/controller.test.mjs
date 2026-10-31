@@ -3,6 +3,11 @@ import assert from "node:assert/strict";
 import { FloatController } from "../mods/float-space/controller.js";
 import { readState, reconcile, returnPane, ownedTerminals, tabName, pressedInWindow, DEFAULT_SIZE, PRESETS, windowSpec } from "../mods/float-space/model.js";
 
+// The block a window shows under its header: a terminal or Notes.
+function body(spec) {
+  return spec.layout.children[1].children[1];
+}
+
 function fixture() {
   const controller = new FloatController();
   const data = { state: readState(null), owned: [], killed: [], opened: [], next: 10 };
@@ -79,7 +84,7 @@ test("closing a tab ends only that terminal, without a question, like Herdr's ta
   await controller.handle(`end-${second}`, host);
   assert.deepEqual(data.killed, [second]);
   assert.equal(data.state.active, first);
-  assert.equal(data.opened.at(-1).layout.children[1].content.terminal, first);
+  assert.equal(body(data.opened.at(-1)).content.terminal, first);
 });
 
 test("notes edited while the core is replying are preserved", async () => {
@@ -238,14 +243,13 @@ test("Notes is a full-width tab; returning to a terminal reuses its process", as
   data.state.notes = "a persisted note";
   await controller.handle("notes", host);
   const spec = windowSpec(data.state);
-  assert.equal(spec.layout.children[1].content.mod, "float-space");
-  assert.equal(spec.layout.children[1].content.props.role, "notes");
-  assert.equal(spec.layout.children.some(node => node.type === "row"), false);
+  assert.equal(body(spec).content.mod, "float-space");
+  assert.equal(body(spec).content.props.role, "notes");
   await controller.handle(`select-${address}`, host);
   assert.equal(data.state.page, "terminal");
   assert.equal(data.owned.length, 1);
   assert.equal(data.state.notes, "a persisted note");
-  assert.equal(data.opened.at(-1).layout.children[1].content.terminal, address);
+  assert.equal(body(data.opened.at(-1)).content.terminal, address);
 });
 
 test("saved Notes page opens without spawning an unnecessary terminal after restart", async () => {
@@ -296,7 +300,7 @@ test("a window Herdr closed when its terminal ended reopens on the next tab at o
   assert.equal(controller.ended(data.owned), true);
   await controller.handle("reconcile", host);
   assert.equal(data.state.active, first);
-  assert.equal(data.opened.at(-1).layout.children[1].content.terminal, first);
+  assert.equal(body(data.opened.at(-1)).content.terminal, first);
   assert.equal(controller.ended(data.owned), false);
 });
 
@@ -332,7 +336,7 @@ test("the last terminal ending while hidden opens Notes instead of a new shell",
   await controller.handle("show", host);
   assert.equal(data.state.page, "notes");
   assert.equal(data.owned.length, 0);
-  assert.equal(data.opened.at(-1).layout.children[1].content.props.role, "notes");
+  assert.equal(body(data.opened.at(-1)).content.props.role, "notes");
 });
 
 test("tabs, tooltips and the end dialog share one name", async () => {
@@ -342,12 +346,15 @@ test("tabs, tooltips and the end dialog share one name", async () => {
   assert.equal(tabName(tab, undefined), "Terminal 1");
 });
 
-test("the window keeps accent free for focus: a stronger theme border, pane-card corners", () => {
-  const { frame, layout } = windowSpec(readState(null), 7);
-  assert.equal(frame, "none");
-  assert.deepEqual(layout.border, { width: 1, color: "input" });
-  assert.equal(layout.radius, 10);
-  assert.equal(layout.children[0].content.props.generation, 7);
+test("the mod draws the window's border around the terminal, inside pane-card corners", () => {
+  const spec = windowSpec(readState({ tabs: [{ address: "t7" }], active: "t7" }), 7);
+  assert.equal(spec.frame, "none");
+  assert.equal(spec.layout.border, undefined);
+  assert.equal(spec.layout.radius, 10);
+  assert.equal(spec.layout.children[0].content.props.generation, 7);
+  const [left, , right] = spec.layout.children[1].children;
+  assert.deepEqual([left, right, spec.layout.children[2]].map(edge => [edge.content.props.side, edge.size.px]), [["left", 1], ["right", 1], ["bottom", 10]]);
+  assert.equal(body(spec).content.terminal, "t7");
 });
 
 test("presets: a small window, the default, a large one, all within bounds", () => {
@@ -383,7 +390,7 @@ test("the header's close after Herdr ended its terminal shows the next tab at on
   const count = data.opened.length;
   await controller.windowClosed(host, controller.generation);
   assert.equal(data.opened.length, count + 1);
-  assert.equal(data.opened.at(-1).layout.children[1].content.terminal, first);
+  assert.equal(body(data.opened.at(-1)).content.terminal, first);
   assert.deepEqual(data.state.tabs.map(tab => tab.address), [first]);
   assert.notEqual(controller.overlay, null);
 });
@@ -402,7 +409,7 @@ test("a window closed before the snapshot dropped its terminal asks core, then s
   const count = data.opened.length;
   await controller.windowClosed(host, controller.generation);
   assert.equal(data.opened.length, count + 1);
-  assert.equal(data.opened.at(-1).layout.children[1].content.terminal, first);
+  assert.equal(body(data.opened.at(-1)).content.terminal, first);
   assert.deepEqual(data.state.tabs.map(tab => tab.address), [first]);
 });
 
@@ -436,7 +443,7 @@ test("the last terminal ending in view shows Notes once core confirms", async ()
   data.owned = [];
   await controller.windowClosed(host, controller.generation);
   assert.equal(data.state.page, "notes");
-  assert.equal(data.opened.at(-1).layout.children[1].content.props.role, "notes");
+  assert.equal(body(data.opened.at(-1)).content.props.role, "notes");
   assert.equal(data.state.tabs.length, 0);
 });
 

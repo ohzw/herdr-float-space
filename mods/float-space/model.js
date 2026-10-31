@@ -102,20 +102,23 @@ export function windowSpec(state, generation = 0) {
     : { id: "float-space-notes", type: "block", content: { mod: "float-space", props: { role: "notes" } } };
   // Herdr reopens a key where it was dropped, even when a taller size no longer
   // fits there. Each size has its own key: a new one opens centered, and each
-  // keeps its own spot (Side at the edge, Normal in the middle).
+  // keeps its own spot.
   const key = `float-space.window.${Math.round(state.size.width * 100)}x${Math.round(state.size.height * 100)}`;
+  // A layout's border can't change color without replacing the window, so the
+  // mod draws its own, accent while the keyboard is in the window: the header
+  // its top, 1px blocks the sides, a 10px band the bottom and its corners.
+  // The layout's 10px corners clip them like a pane card's.
+  const edge = (side, px) => ({ id: `float-space-edge-${side}`, type: "block", size: { px },
+    content: { mod: "float-space", props: { role: "edge", side } } });
   return {
     kind: "window", key, frame: "none",
     width: state.size.width, height: state.size.height,
-    // A pane card's 10px corners with the theme's stronger border: Herdr's own
-    // window frame is faint, a layout shadow is clipped to the window's bounds,
-    // and accent stays free to mark where the keyboard is (the header draws it).
     layout: {
-      id: "float-space-window", type: "column", background: "background",
-      border: { width: 1, color: "input" }, radius: 10, resizable: false,
+      id: "float-space-window", type: "column", background: "background", radius: 10, resizable: false,
       children: [
         { id: "float-space-chrome", type: "block", size: { px: 30 }, content: { mod: "float-space", props: { role: "bar", generation } } },
-        body,
+        { id: "float-space-body", type: "row", resizable: false, children: [edge("left", 1), body, edge("right", 1)] },
+        edge("bottom", 10),
       ],
     },
   };

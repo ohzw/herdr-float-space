@@ -10,9 +10,9 @@ their programs still running, returning the keyboard to the pane underneath.
 ## What you see
 
 - **The window**, 50% of the app's width and 60% of its height by default,
-  opened centered. No Herdr frame: a 1px border in the theme's `input` color
-  (`#404449` in Atom One Dark), 10px corners, the `background` color. Accent
-  is not used for the border; it marks focus (below).
+  opened centered. No Herdr frame: 10px corners, the `background` color and
+  a 1px border in the theme's `input` color (`#404449` in Atom One Dark) that
+  turns `accent` while the keyboard is in the window (below).
 - **The header**, 30px, on `background`, 6px side padding, 6px gaps, 12px
   type, a 1px bottom line in `border`. Left to right:
   - **Notes**, a tab with the 14px notes icon and the word "Notes". It can't
@@ -75,11 +75,11 @@ their programs still running, returning the keyboard to the pane underneath.
 - **Focus.** Opening focuses the header, so typing doesn't reach the agent
   underneath; click the terminal to type in it. Herdr keeps drawing the pane
   underneath as focused while the header or Notes has the keyboard, so the
-  window marks it: the header's bottom line and the selected tab's outline
-  turn `accent` while typing goes into the window (header, Notes or its
-  terminal) and go back to `border` when it leaves: a click anywhere outside
-  the window, or Herdr focusing another pane. Escape is left to the terminal
-  programs.
+  window marks it: its whole border turns `accent` while typing goes into the
+  window (header, Notes or its terminal) and goes back to `input` when it
+  leaves: a click anywhere outside the window, or Herdr focusing another
+  pane. A press on the header (a tab, a button or free space) puts the
+  keyboard in the header. Escape is left to the terminal programs.
 - **Notes** save on their own 400 ms after typing pauses, and when Notes
   closes (another tab, hiding). They are the same in every space.
 - **Window size**: a preset applies at once and closes the popup. The
@@ -109,13 +109,18 @@ their programs still running, returning the keyboard to the pane underneath.
     an invisible 1×1 window that runs one command (default `toggle`) and
     closes itself.
   - `"bar"` with a `generation`: the header.
+  - `"edge"` with a `side` (`left`, `right`, `bottom`): the border beside and
+    under the body.
   - `"notes"`: Notes. `"size"`: the size popup.
   - none in a layout, or `"launcher"`: the optional button.
 - **The window**: `openOverlay({kind: "window", key:
   "float-space.window.<W>x<H>", frame: "none", width, height, layout})`,
-  W and H in percent; the layout is a column with `border: {width: 1, color:
-  "input"}`, `radius: 10`: the 30px `bar` block, then a `{terminal}` block
-  or the `notes` block.
+  W and H in percent; the layout is a column with `radius: 10` and no
+  border: the 30px `bar` block; a row of the 1px `left` edge, a `{terminal}`
+  block or the `notes` block, and the 1px `right` edge; then the 10px
+  `bottom` edge. The header draws the border's top with `rounded_t(10)`,
+  the side edges fill with the border color, the bottom band draws
+  `border_b`, `border_l`, `border_r` and `rounded_b(10)`.
 - **Commands** run by the controller: `toggle`, `show`, `hide`, `new`,
   `notes`, `select-<address>`, `end-<address>`, `resize-<W>-<H>`,
   `reconcile`. The header, the popup and the button start them with
@@ -162,7 +167,14 @@ their programs still running, returning the keyboard to the pane underneath.
   the window (the header's bounds widened by the 1px border, down to the
   window's height, `size.height × window.viewport_size().height`) means the
   terminal has the keyboard until a press outside it, or until `focused()`
-  changes.
+  changes. The tabs and buttons stop mouse-down propagation (or they'd drag
+  the window), so they focus the header themselves.
+- A layout's `border` can't change color without replacing the window,
+  which rebuilds the terminal view and loses the keyboard, so the mod draws
+  the border with its own blocks. The header checks focus every 150 ms and
+  keeps the answer in the shared `globalThis` entry; the edge blocks read it
+  every 100 ms and redraw only on a change. A header closed by a remount
+  must not clear it for the new one.
 - A press outside a popup closes it before the opening button's click
   arrives. The popup records itself in `globalThis.__herdr_float_space_size_v1`;
   the size button checks it on press, so a second press only closes it.
@@ -196,7 +208,7 @@ their programs still running, returning the keyboard to the pane underneath.
 - Notes typed in one space appear in another and survive a restart.
 - Small, Normal and Large apply in one click and fit inside the app; the
   sliders change nothing until Apply.
-- The header line is `accent` after clicking the window's terminal or Notes,
-  and `border` after clicking a pane outside it.
+- The border is `accent` all the way round after clicking the window's
+  terminal, Notes or a header tab, and `input` after clicking a pane outside.
 - Rapid presses never start an extra shell, also right after the mod
   reloads; `herdr-app status` shows no errors.

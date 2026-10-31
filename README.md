@@ -15,10 +15,10 @@ again and you're back where you were. Your layout stays as it is.
 - Switch tabs inside the window without touching the space behind it. Agents
   show their own name and icon, with Herdr's working spinner and
   blocked/done dots.
-- While the keyboard is in Float Space, the line under its header and the
-  selected tab's outline turn your theme's accent color; clicking outside the
-  window turns them back. (Herdr keeps drawing the pane underneath as
-  focused, so look at this line.)
+- While the keyboard is in Float Space (its terminal, Notes or header), its
+  border turns your theme's accent color; clicking outside turns it back.
+  Herdr keeps drawing the pane underneath as focused too; Float's border is
+  the one to trust.
 - **Notes** leads the header and can't be closed: one scratchpad shared
   across spaces, in your terminal font and size. It saves once you pause
   typing, and when you switch tabs or hide the window.
