@@ -1,0 +1,21 @@
+{
+  "name": "herdr-float-space",
+  "version": "0.1.0",
+  "description": "A floating scratch window for the Herdr desktop app: terminal tabs and shared notes",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thuanlm215/herdr-float-space.git"
+  },
+  "keywords": [
+    "herdr",
+    "herdr-mod"
+  ],
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "check": "herdr-app check mods/float-space",
+    "install:local": "python3 scripts/install.py"
+  }
+}
