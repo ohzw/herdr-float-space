@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { FloatController } from "../mods/float-space/controller.js";
-import { readState, reconcile, returnPane, ownedTerminals, tabName, DEFAULT_SIZE, PRESETS, windowSpec } from "../mods/float-space/model.js";
+import { readState, reconcile, returnPane, ownedTerminals, tabName, pressedInWindow, DEFAULT_SIZE, PRESETS, windowSpec } from "../mods/float-space/model.js";
 
 function fixture() {
   const controller = new FloatController();
@@ -181,8 +181,8 @@ test("each size opens under its own key, closing the old window once the new one
   await controller.handle("notes", host);
   assert.deepEqual(closed, []);
   const second = controller.overlay;
-  await controller.handle("resize-32-90", host);
-  assert.equal(data.opened.at(-1).key, "float-space.window.32x90");
+  await controller.handle("resize-20-50", host);
+  assert.equal(data.opened.at(-1).key, "float-space.window.20x50");
   assert.deepEqual(closed, [second]);
   assert.notEqual(controller.overlay, first);
   controller.hide(host);
@@ -350,13 +350,25 @@ test("the window keeps accent free for focus: a stronger theme border, pane-card
   assert.equal(layout.children[0].content.props.generation, 7);
 });
 
-test("presets: a narrow tall side window, the default, a large one, all within bounds", () => {
-  assert.deepEqual(PRESETS.map(preset => preset.id), ["side", "normal", "large"]);
+test("presets: a small window, the default, a large one, all within bounds", () => {
+  assert.deepEqual(PRESETS.map(preset => preset.id), ["small", "normal", "large"]);
   assert.deepEqual({ width: PRESETS[1].width, height: PRESETS[1].height }, DEFAULT_SIZE);
   for (const preset of PRESETS) {
     assert.deepEqual(readState({ size: preset }).size, { width: preset.width, height: preset.height });
   }
-  assert.ok(PRESETS[0].width < PRESETS[1].width && PRESETS[0].height > PRESETS[1].height);
+  assert.deepEqual({ width: PRESETS[0].width, height: PRESETS[0].height }, { width: 0.20, height: 0.50 });
+  assert.ok(PRESETS[2].width > PRESETS[1].width && PRESETS[2].height > PRESETS[1].height);
+});
+
+test("a press counts as inside the window from its border to its bottom edge", () => {
+  const bar = { x: 100, y: 50, width: 400, height: 30 };
+  assert.equal(pressedInWindow({ x: 300, y: 200 }, bar, 300), true);
+  assert.equal(pressedInWindow({ x: 99, y: 49 }, bar, 300), true);
+  assert.equal(pressedInWindow({ x: 300, y: 349 }, bar, 300), true);
+  assert.equal(pressedInWindow({ x: 300, y: 351 }, bar, 300), false);
+  assert.equal(pressedInWindow({ x: 98, y: 200 }, bar, 300), false);
+  assert.equal(pressedInWindow({ x: 502, y: 200 }, bar, 300), false);
+  assert.equal(pressedInWindow({ x: 300, y: 20 }, bar, 300), false);
 });
 
 test("the header's close after Herdr ended its terminal shows the next tab at once", async () => {

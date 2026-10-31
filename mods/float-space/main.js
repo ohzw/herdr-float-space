@@ -1,7 +1,7 @@
 import { View, div, svg, image } from "gpui-kit";
 import { h_flex, v_flex, TextareaState, Textarea, SliderState, Slider, SliderTrack, SliderIndicator, SliderThumb } from "gpui-base";
 import { appHome, home, hc, focused, panes, terminals, shared, setShared, settings, props, theme, run, openOverlay, closeOverlay, notify } from "herdr";
-import { STATE_KEY, DEFAULT_SIZE, PRESETS, readState, ownedTerminals, tabName } from "./model.js";
+import { STATE_KEY, DEFAULT_SIZE, PRESETS, readState, ownedTerminals, tabName, pressedInWindow } from "./model.js";
 import { FloatController } from "./controller.js";
 
 const WINDOW = "__herdr_float_space_window_v1";
@@ -66,6 +66,10 @@ function release(owner) {
 }
 
 function stop(_event, cx) { cx.stop_propagation(); }
+function focusKey() {
+  const now = focused();
+  return `${now?.pane}|${now?.terminal}`;
+}
 // The icon from the app's program table: a one-color glyph or a picture.
 function programIcon(program, color) {
   if (!program?.icon) return null;
@@ -97,7 +101,7 @@ export default class FloatSpace extends View {
       globalThis[SIZE_POPUP] = { overlay: this.copyProps.overlay };
       const size = readState(shared(STATE_KEY)).size;
       this.sliders = {};
-      for (const [key, min, max] of [["width", 25, 95], ["height", 30, 95]]) {
+      for (const [key, min, max] of [["width", 20, 95], ["height", 30, 95]]) {
         const slider = SliderState.new({ min, max, step: 1, value: Math.round(size[key] * 100) });
         slider.on("change", (_value, cx) => cx.notify());
         this.sliders[key] = slider;
@@ -141,11 +145,21 @@ export default class FloatSpace extends View {
   }
 
   // Whether typing goes into this window: its header, Notes or its terminal.
-  // Herdr keeps the pane underneath marked focused in the first two cases.
+  // Herdr keeps the pane underneath marked focused in all three cases, and
+  // `focused()` doesn't report a terminal in an overlay, so a press inside the
+  // window counts until a press elsewhere or Herdr focusing another pane.
   keyboard() {
     if (this.handle?.is_focused() || windowShared().notesFocused) return true;
+    if (this.pressedIn && this.pressedIn === focusKey()) return true;
     const now = focused();
     return !now?.pane && readState(shared(STATE_KEY)).tabs.some(tab => tab.address === now?.terminal);
+  }
+
+  // Any press outside the header: in the window's body, or anywhere else.
+  notePress(event) {
+    if (!event.bounds) return;
+    const height = readState(shared(STATE_KEY)).size.height * window.viewport_size().height;
+    this.pressedIn = pressedInWindow(event.position, event.bounds, height) ? focusKey() : null;
   }
 
   saveNotes() {
@@ -261,7 +275,8 @@ export default class FloatSpace extends View {
     // Notes can't be closed, so it leads the header where a title would be; the
     // terminal tabs follow. Free strip space drags the window. The bottom line
     // turns accent while the keyboard is here, as a focused pane's border does.
-    return h_flex().id("float-space-bar").track_focus(this.handle).size_full().px(6).gap(6).items_center()
+    return h_flex().id("float-space-bar").track_focus(this.handle).on_mouse_down_out(event => this.notePress(event))
+      .size_full().px(6).gap(6).items_center()
       .bg(t.background).border_b(1).border_color(keyboard ? t.accent : t.border).text_color(t.foreground).text_size(12)
       .child(this.tab("float-notes-tab", svg("mods/float-space/notes.svg").size(14).flex_none().text_color(notes ? t.foreground : t.muted), "Notes",
         notes, () => act("notes"), [], keyboard).tooltip("Notes shared across your spaces"))

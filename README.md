@@ -16,13 +16,14 @@ again and you're back where you were. Your layout stays as it is.
   show their own name and icon, with Herdr's working spinner and
   blocked/done dots.
 - While the keyboard is in Float Space, the line under its header and the
-  selected tab's outline turn your theme's accent color. (Herdr keeps
-  drawing the pane underneath as focused, so look at this line.)
+  selected tab's outline turn your theme's accent color; clicking outside the
+  window turns them back. (Herdr keeps drawing the pane underneath as
+  focused, so look at this line.)
 - **Notes** leads the header and can't be closed: one scratchpad shared
   across spaces, in your terminal font and size. It saves once you pause
   typing, and when you switch tabs or hide the window.
-- **Window size** (diagonal arrows) has three presets: **Side** (32% × 90%,
-  for notes beside your code), **Normal** (50% × 60%, the default) and
+- **Window size** (diagonal arrows) has three presets: **Small** (20% × 50%,
+  for notes or a quick command), **Normal** (50% × 60%, the default) and
   **Large** (85% × 88%, room for an agent). Sliders set any other size;
   **Apply** keeps it. Each size opens centered the first time and then
   wherever you last dragged it. Drag free header space to move the window.

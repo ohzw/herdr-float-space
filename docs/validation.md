@@ -6,7 +6,7 @@ day-to-day comfort is for the person using it to judge.
 
 ## Automated checks
 
-- `npm test`: 37 passing lifecycle and state tests.
+- `npm test`: 38 passing lifecycle and state tests.
 - `python3 -m unittest discover -s tests -p 'test_*.py'`: 3 passing installer tests.
 - `herdr-app check mods/float-space`: passes.
 
@@ -40,13 +40,15 @@ matched the installer's record again.
 | Window border | 1px `input`, `(64,68,73)` in Atom One Dark |
 | Header | Notes icon and label, divider, terminal tabs with program icons; selected tab outlined in accent while focused |
 | Notes | Terminal font from settings (JetBrains Mono 14) |
-| Size popup | Side 32 × 90, Normal 50 × 60, Large 85 × 88; the current size outlined |
-| Side preset with a single window key | Reopened at the remembered spot (424, 353) and ran about 210 px past the app's bottom edge |
-| Side and Normal with one key per size | Each opened centered; Side at about (870, 71), inside the app |
+| Size popup | Three presets; the current size outlined |
+| A former 32 × 90 preset with a single window key | Reopened at the remembered spot (424, 353) and ran about 210 px past the app's bottom edge |
+| 32 × 90 and 50 × 60 with one key per size | Each opened centered; 32 × 90 at about (870, 71), inside the app |
+| Focus, traced while the person clicked into the window's terminal, then a pane outside, and typed | `focused()` kept naming the pane underneath after the click into the window, so the line stayed `border` while typing went into the window; outside, typing reached the pane and the line was `border`. The header now decides from presses (`on_mouse_down_out`) |
 | Installed with `scripts/install.py --update`, no layout file | No mod errors in `herdr-app status` |
 
-Not checked with real input in this build: clicking Notes, presets, ×, the
-size button a second time, dragging the window, and typing into Notes. A
+Not checked with real input in this build: the press-based focus line,
+the Small preset (20 × 50), clicking Notes, presets, ×, the size button a
+second time, dragging the window, and typing into Notes. A
 core reply slower than the 250 ms Herdr gives `close()` would leave the
 window closed until the next press.
 

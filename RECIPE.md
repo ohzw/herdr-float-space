@@ -39,12 +39,13 @@ their programs still running, returning the keyboard to the pane underneath.
   padding, 10px gaps, 12px type:
   - "Window size" in medium weight.
   - Three presets side by side, each a 6px-corner box with the name and an
-    11px `dim` size: Side 32 × 90, Normal 50 × 60, Large 85 × 88. The one
+    11px `dim` size: Small 20 × 50, Normal 50 × 60, Large 85 × 88. The one
     matching the current size has an `accent` outline on `selected`; the
     others an `input` outline on `raised`.
-  - Width and Height, each a label with its value ("50%", `muted`) on the
-    right and a native slider below: a 4px groove in `border`, the filled part
-    in `accent`, a 12px `foreground` thumb centered on the groove.
+  - Width (20–95%) and Height (30–95%), each a label with its value ("50%",
+    `muted`) on the right and a native slider below: a 4px groove in
+    `border`, the filled part in `accent`, a 12px `foreground` thumb centered
+    on the groove.
   - Reset (raised, `input` outline) and Apply (solid primary), 26px tall with
     12px side padding, at either end of the last row.
 - **Optional button**, for a personal layout's status bar: a 32px block on
@@ -76,16 +77,17 @@ their programs still running, returning the keyboard to the pane underneath.
   underneath as focused while the header or Notes has the keyboard, so the
   window marks it: the header's bottom line and the selected tab's outline
   turn `accent` while typing goes into the window (header, Notes or its
-  terminal) and go back to `border` when it leaves. Escape is left to the
-  terminal programs.
+  terminal) and go back to `border` when it leaves: a click anywhere outside
+  the window, or Herdr focusing another pane. Escape is left to the terminal
+  programs.
 - **Notes** save on their own 400 ms after typing pauses, and when Notes
   closes (another tab, hiding). They are the same in every space.
 - **Window size**: a preset applies at once and closes the popup. The
   sliders show their value while dragging but change nothing until Apply;
   Reset puts 50 × 60 in the sliders; Escape or a click outside cancels.
   Pressing the size button again closes the popup. A new size opens centered
-  the first time and afterwards wherever it was last dropped, so a Side window
-  can stay at an edge while Normal stays in the middle.
+  the first time and afterwards wherever it was last dropped, so a Small
+  window can stay in a corner while Normal stays in the middle.
 - Pressing on free header space and dragging moves the window; Herdr keeps
   the spot. Tabs, buttons and Notes don't start a drag.
 - Errors show as a Herdr notification titled "Float Space".
@@ -154,6 +156,13 @@ their programs still running, returning the keyboard to the pane underneath.
   opens the new window before closing the old one.
 - `pane.focus` doesn't reach overlay terminals in Herdr 0.1.10 (it shows a
   failed-command toast), so the terminal can't be focused for the person.
+  `focused()` doesn't report one either: after a click into the window's
+  terminal it still names the pane underneath. The header's
+  `on_mouse_down_out` sees every press outside the header; a press inside
+  the window (the header's bounds widened by the 1px border, down to the
+  window's height, `size.height × window.viewport_size().height`) means the
+  terminal has the keyboard until a press outside it, or until `focused()`
+  changes.
 - A press outside a popup closes it before the opening button's click
   arrives. The popup records itself in `globalThis.__herdr_float_space_size_v1`;
   the size button checks it on press, so a second press only closes it.
@@ -185,9 +194,9 @@ their programs still running, returning the keyboard to the pane underneath.
 - + adds a shell, tab clicks switch, × ends only that terminal, and killing
   the shown terminal from outside shows the next tab at once.
 - Notes typed in one space appear in another and survive a restart.
-- Side, Normal and Large apply in one click and fit inside the app; the
+- Small, Normal and Large apply in one click and fit inside the app; the
   sliders change nothing until Apply.
-- The header line is `accent` while typing goes into the window and `border`
-  after clicking a pane outside it.
+- The header line is `accent` after clicking the window's terminal or Notes,
+  and `border` after clicking a pane outside it.
 - Rapid presses never start an extra shell, also right after the mod
   reloads; `herdr-app status` shows no errors.

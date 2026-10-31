@@ -1,9 +1,10 @@
 export const STATE_KEY = "float-space.v1";
 export const MAX_TERMINALS = 12;
 export const DEFAULT_SIZE = { width: 0.50, height: 0.60 };
-// One click sizes: notes beside the code, the default, and room for an agent.
+// One click sizes: a small window for notes or a quick command, the default,
+// and room for an agent.
 export const PRESETS = [
-  { id: "side", label: "Side", width: 0.32, height: 0.90 },
+  { id: "small", label: "Small", width: 0.20, height: 0.50 },
   { id: "normal", label: "Normal", ...DEFAULT_SIZE },
   { id: "large", label: "Large", width: 0.85, height: 0.88 },
 ];
@@ -15,7 +16,7 @@ function fraction(value, fallback, min, max) {
 
 export function readSize(value) {
   return {
-    width: fraction(value?.width, DEFAULT_SIZE.width, 0.25, 0.95),
+    width: fraction(value?.width, DEFAULT_SIZE.width, 0.20, 0.95),
     height: fraction(value?.height, DEFAULT_SIZE.height, 0.30, 0.95),
   };
 }
@@ -73,6 +74,13 @@ export function returnPane(previous, current, panes, owned) {
   if (current?.terminal && !owned.includes(current.terminal)) return null;
   if (previous?.tab === current?.tab && available.some(pane => pane.pane === previous.pane)) return previous.pane;
   return available.find(pane => pane.focused)?.pane ?? available[0]?.pane ?? null;
+}
+
+// Whether a press landed in the window, given its header's bounds and the
+// window's height, both in window pixels. The 1px border counts.
+export function pressedInWindow(position, bar, height) {
+  return position.x >= bar.x - 1 && position.x <= bar.x + bar.width + 1
+    && position.y >= bar.y - 1 && position.y <= bar.y - 1 + height;
 }
 
 // The terminal a window shows; null when it shows Notes.
