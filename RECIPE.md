@@ -156,6 +156,13 @@ their programs still running, returning the keyboard to the pane underneath.
   a remount or a hide, and hiding forgets the window before closing it.
   `close()` gets 250 ms: ask core there directly (`hc ls`, tens of ms). Work
   handed from `close()` to another copy is cancelled with it.
+- Every change of what the window shows (a tab, Notes, a new or closed
+  terminal, a size) replaces the window: there is no call to swap the
+  terminal in an open overlay, so Herdr rebuilds the terminal view and the
+  mod's blocks, which shows as a flicker. Closing the shown tab replaces the
+  window with the next tab first and only then ends the terminal: ending it
+  first makes Herdr close the window, and closing then reopening flickers
+  more. A failed kill puts the tab back.
 - Herdr reopens a window key where it was dropped even when a taller size
   doesn't fit there, so each size has its own key; a remount with a new key
   opens the new window before closing the old one.

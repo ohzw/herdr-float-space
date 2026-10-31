@@ -6,7 +6,7 @@ day-to-day comfort is for the person using it to judge.
 
 ## Automated checks
 
-- `npm test`: 38 passing lifecycle and state tests.
+- `npm test`: 40 passing lifecycle and state tests.
 - `python3 -m unittest discover -s tests -p 'test_*.py'`: 3 passing installer tests.
 - `herdr-app check mods/float-space`: passes.
 
@@ -49,8 +49,9 @@ matched the installer's record again.
 | `terminal_menu` set on the window's layout, the person right-clicking its terminal | Ignored: Herdr's own pane menu showed; removed again |
 | Installed with `scripts/install.py --update`, no layout file | No mod errors in `herdr-app status` |
 
-Not checked with real input in this build: clicking a header tab from a
-pane outside, the Small preset (20 × 50),
+Not checked with real input in this build: closing the shown tab with ×
+since it shows the next tab before ending the terminal, clicking a header
+tab from a pane outside, the Small preset (20 × 50),
 clicking Notes, presets, ×, the size button a second time, dragging the
 window, and typing into Notes. A
 core reply slower than the 250 ms Herdr gives `close()` would leave the

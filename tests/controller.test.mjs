@@ -87,6 +87,32 @@ test("closing a tab ends only that terminal, without a question, like Herdr's ta
   assert.equal(body(data.opened.at(-1)).content.terminal, first);
 });
 
+test("closing the shown tab shows the next one before its terminal ends", async () => {
+  const { controller, host, data } = fixture();
+  await controller.handle("show", host);
+  const first = data.state.active;
+  await controller.handle("new", host);
+  const second = data.state.active;
+  const log = [];
+  const open = host.open, kill = host.killOwned;
+  host.open = spec => { log.push(`open ${body(spec).content.terminal}`); return open(spec); };
+  host.killOwned = async address => { log.push(`kill ${address}`); return kill(address); };
+  await controller.handle(`end-${second}`, host);
+  assert.deepEqual(log, [`open ${first}`, `kill ${second}`]);
+});
+
+test("a failed kill puts the closed tab back in view", async () => {
+  const { controller, host, data } = fixture();
+  await controller.handle("show", host);
+  await controller.handle("new", host);
+  const second = data.state.active;
+  host.killOwned = async () => { throw new Error("kill failed"); };
+  await assert.rejects(() => controller.handle(`end-${second}`, host), /kill failed/);
+  assert.equal(data.state.active, second);
+  assert.equal(data.state.tabs.length, 2);
+  assert.equal(body(data.opened.at(-1)).content.terminal, second);
+});
+
 test("notes edited while the core is replying are preserved", async () => {
   const { controller, host, data } = fixture();
   host.listOwned = async () => { data.state.notes = "edited during refresh"; return data.owned; };

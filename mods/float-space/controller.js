@@ -162,12 +162,20 @@ export class FloatController {
       const address = command.slice(4);
       const state = await this.refresh(host);
       if (!state.tabs.some(tab => tab.address === address)) throw new Error("That terminal no longer belongs to Float Space.");
-      await host.killOwned(address);
-      const latest = this.state(host);
-      const tabs = latest.tabs.filter(tab => tab.address !== address);
-      const after = this.patch(host, { tabs, active: latest.active === address ? tabs[0]?.address ?? null : latest.active,
-        page: tabs.length ? latest.page : "notes" });
+      // Show the next tab first: Herdr closes a window whose terminal ends,
+      // and replacing it in place flickers less than closing and reopening.
+      const before = { tabs: state.tabs, active: state.active, page: state.page };
+      const tabs = state.tabs.filter(tab => tab.address !== address);
+      const after = this.patch(host, { tabs, active: state.active === address ? tabs[0]?.address ?? null : state.active,
+        page: tabs.length ? state.page : "notes" });
       if (this.overlay && shownTerminal(after) !== this.mounted) this.mount(host, after);
+      try {
+        await host.killOwned(address);
+      } catch (error) {
+        const restored = this.patch(host, before);
+        if (this.overlay && shownTerminal(restored) !== this.mounted) this.mount(host, restored);
+        throw error;
+      }
     } else if (command === "reconcile" && this.overlay) {
       const before = this.state(host);
       const live = host.liveOwned?.();
