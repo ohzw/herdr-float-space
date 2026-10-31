@@ -66,9 +66,36 @@ function release(owner) {
 }
 
 function stop(_event, cx) { cx.stop_propagation(); }
+
+// The header and the edge blocks draw one border. Each waits on the same
+// change in a task of its own (a task's `cx.notify()` redraws its view even
+// when another view woke it), so all four redraw together.
+function showFocus(keyboard) {
+  const memory = windowShared();
+  if (memory.keyboard === keyboard) return;
+  memory.keyboard = keyboard;
+  memory.focusChanged?.resolve();
+  memory.focusChanged = null;
+}
+
+function drawsBorder(cx) {
+  cx.spawn(async cx => {
+    for (;;) {
+      const memory = windowShared();
+      if (!memory.focusChanged) {
+        let resolve;
+        const promise = new Promise(done => { resolve = done; });
+        memory.focusChanged = { promise, resolve };
+      }
+      await memory.focusChanged.promise;
+      cx.notify();
+    }
+  });
+}
+
 // A press on the header's own controls puts the keyboard in the window too.
 function grab(view) {
-  return (_event, cx) => { cx.stop_propagation(); view.handle?.focus(); };
+  return (_event, cx) => { cx.stop_propagation(); view.handle?.focus(); showFocus(true); };
 }
 function focusKey() {
   const now = focused();
@@ -124,7 +151,8 @@ export default class FloatSpace extends View {
       this.handle = cx.focus_handle();
       // Herdr 0.1.10's pane.focus only addresses main-layout terminals.
       // Focus our chrome instead of leaving typing in the agent underneath.
-      cx.timer.after(0, () => this.handle.focus());
+      cx.timer.after(0, () => { this.handle.focus(); showFocus(true); });
+      drawsBorder(cx);
       // Core state is live: reconcile only when the snapshot disagrees with the
       // tabs, once per snapshot, while the window is open.
       cx.timer.every(3000, () => {
@@ -137,22 +165,11 @@ export default class FloatSpace extends View {
         memory.reconciled = seen;
         act("reconcile");
       });
-      // Nothing announces focus moving into or out of this window: check cheaply
-      // and let the border blocks redraw on a change.
-      cx.timer.every(150, cx => {
-        const keyboard = this.keyboard();
-        windowShared().keyboard = keyboard;
-        if (keyboard === this.hadKeyboard) return;
-        this.hadKeyboard = keyboard;
-        cx.notify();
-      });
+      // Presses update the border at once; this catches the rest, such as
+      // Herdr focusing another pane from the keyboard.
+      cx.timer.every(150, () => showFocus(this.keyboard()));
     } else if (this.role === "edge") {
-      cx.timer.every(100, cx => {
-        const keyboard = Boolean(windowShared().keyboard);
-        if (keyboard === this.hadKeyboard) return;
-        this.hadKeyboard = keyboard;
-        cx.notify();
-      });
+      drawsBorder(cx);
     }
   }
 
@@ -171,7 +188,9 @@ export default class FloatSpace extends View {
   notePress(event) {
     if (!event.bounds) return;
     const height = readState(shared(STATE_KEY)).size.height * window.viewport_size().height;
-    this.pressedIn = pressedInWindow(event.position, event.bounds, height) ? focusKey() : null;
+    const inside = pressedInWindow(event.position, event.bounds, height);
+    this.pressedIn = inside ? focusKey() : null;
+    showFocus(inside);
   }
 
   saveNotes() {
@@ -213,7 +232,7 @@ export default class FloatSpace extends View {
     return h_flex().id(id).size(22).items_center().justify_center().flex_none().rounded(6).text_color(t.dim)
       .cursor_pointer().hover(s => s.bg(t.hover).text_color(t.foreground))
       .tooltip(label).accessibility_label(label)
-      .on_mouse_down("left", (event, cx) => { cx.stop_propagation(); this.handle?.focus(); this.pointer = event.position; press?.(); }).on_click(action)
+      .on_mouse_down("left", (event, cx) => { cx.stop_propagation(); this.handle?.focus(); showFocus(true); this.pointer = event.position; press?.(); }).on_click(action)
       .child(svg(`mods/float-space/${icon}.svg`).size(14));
   }
 
@@ -268,7 +287,7 @@ export default class FloatSpace extends View {
     const state = readState(shared(STATE_KEY));
     const live = terminals();
     const notes = state.page === "notes";
-    const ring = this.keyboard() ? t.accent : t.input;
+    const ring = windowShared().keyboard ? t.accent : t.input;
     const tabs = state.tabs.map(tab => {
       const terminal = live.find(item => item.address === tab.address);
       const name = tabName(tab, terminal);
@@ -288,7 +307,7 @@ export default class FloatSpace extends View {
     // terminal tabs follow. Free strip space drags the window. The outer edge is
     // the top of the window's border; the line under the tabs stays neutral.
     return v_flex().id("float-space-bar").track_focus(this.handle).on_mouse_down_out(event => this.notePress(event))
-      .on_mouse_down("left", () => this.handle.focus())
+      .on_mouse_down("left", () => { this.handle.focus(); showFocus(true); })
       .size_full().bg(t.background).border_t(1).border_l(1).border_r(1).rounded_t(10).border_color(ring)
       .child(h_flex().flex_1().min_h(0).px(6).gap(6).items_center().border_b(1).border_color(t.border)
       .text_color(t.foreground).text_size(12)

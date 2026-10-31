@@ -171,10 +171,18 @@ their programs still running, returning the keyboard to the pane underneath.
   the window), so they focus the header themselves.
 - A layout's `border` can't change color without replacing the window,
   which rebuilds the terminal view and loses the keyboard, so the mod draws
-  the border with its own blocks. The header checks focus every 150 ms and
-  keeps the answer in the shared `globalThis` entry; the edge blocks read it
-  every 100 ms and redraw only on a change. A header closed by a remount
-  must not clear it for the new one.
+  the border with its own blocks. Presses update it at once (the header's
+  `on_mouse_down_out` and its own controls); a 150 ms check catches the rest.
+  The answer lives in the shared `globalThis` entry, and the header and the
+  three edge blocks each wait on one shared promise in a `cx.spawn` task and
+  `cx.notify()` when it resolves, so all four redraw together. Polling in
+  each block let the sides change before the header, and calling another
+  view's `cx.notify()` from the header's call redrew it about a second late.
+  A header closed by a remount must not clear the answer for the new one.
+- Herdr's terminal right-click menu comes from the shown layout's
+  `terminal_menu`; an overlay layout's own is ignored. In the window its pane
+  items (Split, Zoom, Close pane) fail with `no pane
+  "<overlay>/float-space-terminal"`; "Send right-clicks to pane" works.
 - A press outside a popup closes it before the opening button's click
   arrives. The popup records itself in `globalThis.__herdr_float_space_size_v1`;
   the size button checks it on press, so a second press only closes it.

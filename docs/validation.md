@@ -37,16 +37,20 @@ matched the installer's record again.
 | Handing that check from the header's `close()` to a new command copy | The copy hung on its first `hc` call and ran only after the next reload |
 | Asking core inside the header's `close()`, twice | Reopened on the next tab 14–15 ms after the close |
 | Window border drawn by the mod's own blocks (header top, 1px sides, 10px bottom band) | Continuous all the way round, corners included; `accent` `(97,175,239)` right after opening, `input` `(64,68,73)` on all four sides after `pane.focus` moved the keyboard to a pane outside |
+| Border redraw, 3 rounds: `pane.focus` to a pane outside, then hide and show; screenshots about 0.1 s apart | All four sides always the same color; `input` within 0.09–0.14 s (through the 150 ms check), `accent` on showing |
+| Earlier border redraws | Polling in each block: the person saw the sides change before the header. Calling the edge views' `cx.notify()` from the header: header `input`, sides still `accent` 0.4 s later, all `input` after about 1.4 s |
+| The person clicking into the window's terminal and out to a pane, several times | Border changed at once, all sides together |
 | Header | Notes icon and label, divider, terminal tabs with program icons |
 | Notes | Terminal font from settings (JetBrains Mono 14) |
 | Size popup | Three presets; the current size outlined |
 | A former 32 × 90 preset with a single window key | Reopened at the remembered spot (424, 353) and ran about 210 px past the app's bottom edge |
 | 32 × 90 and 50 × 60 with one key per size | Each opened centered; 32 × 90 at about (870, 71), inside the app |
 | Focus, traced while the person clicked into the window's terminal, then a pane outside, and typed | `focused()` kept naming the pane underneath after the click into the window, so focus stayed unmarked while typing went into the window; outside, typing reached the pane. The header now decides from presses (`on_mouse_down_out`) |
+| `terminal_menu` set on the window's layout, the person right-clicking its terminal | Ignored: Herdr's own pane menu showed; removed again |
 | Installed with `scripts/install.py --update`, no layout file | No mod errors in `herdr-app status` |
 
-Not checked with real input in this build: the border following clicks
-into and out of the window and on header tabs, the Small preset (20 × 50),
+Not checked with real input in this build: clicking a header tab from a
+pane outside, the Small preset (20 × 50),
 clicking Notes, presets, ×, the size button a second time, dragging the
 window, and typing into Notes. A
 core reply slower than the 250 ms Herdr gives `close()` would leave the

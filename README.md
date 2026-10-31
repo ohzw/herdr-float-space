@@ -99,6 +99,10 @@ isn't its own, and it finds its shells again if its saved tab list is lost.
   same terminals and notes.
 - Mods can't add entries to the command palette (Ctrl+Shift+P) yet; use the
   shortcut.
+- Right-clicking a Float Space terminal shows Herdr's pane menu, and its
+  Split, Zoom and Close pane items don't work there (a mod can't replace that
+  menu for its own window). Use **+** and the tab's **×**; "Send right-clicks
+  to pane" works.
 - Mods can't resize a window by its edges; use **Window size**.
 - Opening right after the mod (re)loads can pause for a moment while Herdr
   starts the terminal view.
