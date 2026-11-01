@@ -1,7 +1,7 @@
 import { View, div, svg, image } from "gpui-kit";
 import { h_flex, v_flex, TextareaState, Textarea, SliderState, Slider, SliderTrack, SliderIndicator, SliderThumb } from "gpui-base";
-import { appHome, home, hc, focused, panes, terminals, shared, setShared, settings, props, theme, run, openOverlay, closeOverlay, notify } from "herdr";
-import { STATE_KEY, DEFAULT_SIZE, PRESETS, readState, ownedTerminals, tabName, pressedInWindow } from "./model.js";
+import { appHome, home, hc, focused, panes, terminals, shared, setShared, settings, props, theme, run, openOverlay, closeOverlay, notify, playSound, window as app } from "herdr";
+import { STATE_KEY, DEFAULT_SIZE, PRESETS, readState, ownedTerminals, tabName, pressedInWindow, agentAlerts } from "./model.js";
 import { FloatController } from "./controller.js";
 
 const WINDOW = "__herdr_float_space_window_v1";
@@ -93,6 +93,39 @@ function drawsBorder(cx) {
   });
 }
 
+// Herdr alerts only for agents in its spaces, so the window tells about its
+// own while it's open: a toast and Herdr's sound when an agent finishes or
+// needs the person, unless they're watching it (Herdr's window active, the
+// keyboard in this window, that tab shown). Every header copy runs this; the
+// shared memory makes one of them report each change.
+const ALERTS = {
+  done: { says: "finished", level: "success", sound: "done" },
+  blocked: { says: "needs you", level: "warning", sound: "blocked" },
+  error: { says: "stopped with an error", level: "error", sound: "blocked" },
+};
+function watchAgents() {
+  const memory = windowShared();
+  const state = readState(shared(STATE_KEY));
+  const live = ownedTerminals(terminals(), appHome());
+  // After a gap (hidden, reloaded), what changed meanwhile is old news.
+  const seen = Date.now() - (memory.watchedAt ?? 0) < 3000 ? memory.statuses ?? null : null;
+  memory.watchedAt = Date.now();
+  const looking = app().active && memory.keyboard && state.page === "terminal" ? state.active : null;
+  const { statuses, alerts } = agentAlerts(seen, live, looking);
+  memory.statuses = statuses;
+  if (!alerts.length) return;
+  for (const alert of alerts) {
+    const tab = state.tabs.find(item => item.address === alert.address);
+    const name = tab ? tabName(tab, live.find(item => item.address === alert.address)) : "An agent";
+    const { says, level } = ALERTS[alert.kind];
+    notify({ title: `${name} ${says}`, body: "In Float Space", level });
+  }
+  // Herdr's own sounds, or the files settings.json names; off with them.
+  if (settings().sounds?.enabled !== false) {
+    playSound(alerts.some(alert => alert.kind !== "done") ? "blocked" : "done");
+  }
+}
+
 // A press on the header's own controls puts the keyboard in the window too.
 function grab(view) {
   return (_event, cx) => { cx.stop_propagation(); view.handle?.focus(); showFocus(true); };
@@ -168,6 +201,7 @@ export default class FloatSpace extends View {
       // Presses update the border at once; this catches the rest, such as
       // Herdr focusing another pane from the keyboard.
       cx.timer.every(150, () => showFocus(this.keyboard()));
+      cx.timer.every(1000, () => watchAgents());
     } else if (this.role === "edge") {
       drawsBorder(cx);
     }

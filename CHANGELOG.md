@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- While the window is open, an agent in it that finishes or needs you posts
+  a toast and plays Herdr's done or blocked sound (following `sounds` in
+  Herdr's settings), unless you're watching it.
+- New shells take the lowest free number, like Herdr's tabs, instead of
+  counting up forever ("Terminal 37").
 - Tested with Herdr 0.1.11 and core 0.1.16. The first opening after the mod
   loads no longer pauses, and the header's tooltips show; both were Herdr
   fixes, so nothing changed in the mod.

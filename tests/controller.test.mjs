@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { FloatController } from "../mods/float-space/controller.js";
-import { readState, reconcile, returnPane, ownedTerminals, tabName, pressedInWindow, DEFAULT_SIZE, PRESETS, windowSpec } from "../mods/float-space/model.js";
+import { readState, reconcile, returnPane, ownedTerminals, tabName, pressedInWindow, DEFAULT_SIZE, PRESETS, windowSpec, nextTitle, agentAlerts } from "../mods/float-space/model.js";
 
 // The block a window shows under its header: a terminal or Notes.
 function body(spec) {
@@ -512,4 +512,36 @@ test("an empty snapshot while the window is open still hides it on toggle", asyn
   assert.equal(controller.overlay, null);
   assert.equal(data.opened.length, count);
   assert.equal(data.owned.length, 1);
+});
+
+test("a new shell takes the lowest number no open tab uses", async () => {
+  const { controller, host, data } = fixture();
+  await controller.handle("show", host);
+  await controller.handle("new", host);
+  await controller.handle("new", host);
+  assert.deepEqual(data.state.tabs.map(tab => tab.title), ["Terminal 1", "Terminal 2", "Terminal 3"]);
+  await controller.handle(`end-${data.state.tabs[1].address}`, host);
+  await controller.handle("new", host);
+  assert.deepEqual(data.state.tabs.map(tab => tab.title), ["Terminal 1", "Terminal 3", "Terminal 2"]);
+  assert.equal(data.state.sequence, 4);
+  assert.equal(nextTitle([{ title: "Terminal 37" }, { title: "notes" }]), "Terminal 1");
+  assert.equal(nextTitle([]), "Terminal 1");
+});
+
+test("recovered shells are numbered after the open tabs too", () => {
+  const state = readState({ version: 2, tabs: [{ address: "t1", title: "Terminal 1" }], sequence: 40 });
+  const after = reconcile(state, [{ address: "t1" }, { address: "t2" }]);
+  assert.deepEqual(after.tabs.map(tab => tab.title), ["Terminal 1", "Terminal 2"]);
+  assert.equal(after.sequence, 41);
+});
+
+test("agent alerts: finishing, needing the person, never the one being watched", () => {
+  const first = agentAlerts(null, [{ address: "t1", status: "working" }, { address: "t2", status: "working" }], null);
+  assert.deepEqual(first.alerts, [], "the first look only takes note");
+  const next = agentAlerts(first.statuses, [{ address: "t1", status: "idle" }, { address: "t2", status: "blocked" }, { address: "t3", status: "done" }], null);
+  assert.deepEqual(next.alerts, [{ address: "t1", kind: "done" }, { address: "t2", kind: "blocked" }]);
+  const watched = agentAlerts(first.statuses, [{ address: "t1", status: "done" }, { address: "t2", status: "error" }], "t1");
+  assert.deepEqual(watched.alerts, [{ address: "t2", kind: "error" }]);
+  const quiet = agentAlerts({ t1: "idle", t2: null }, [{ address: "t1", status: "done" }, { address: "t2", status: "idle" }], null);
+  assert.deepEqual(quiet.alerts, [], "only working → idle/done counts as finishing");
 });

@@ -50,6 +50,33 @@ export function readState(value) {
   };
 }
 
+// A new shell takes the lowest number no open tab uses, as Herdr numbers its
+// tabs: closing Terminal 2 frees "Terminal 2" for the next one.
+export function nextTitle(tabs) {
+  const used = new Set(tabs.map(tab => /^Terminal (\d+)$/.exec(tab.title)?.[1]).filter(Boolean).map(Number));
+  let number = 1;
+  while (used.has(number)) number += 1;
+  return `Terminal ${number}`;
+}
+
+// Agent changes worth telling the person about, given the statuses seen last
+// time (null: nothing seen yet, so this only takes note). Finishing is working
+// → idle or done; blocked and error need them. `lookingAt` is the terminal
+// they're watching, which never alerts.
+export function agentAlerts(previous, terminals, lookingAt) {
+  const statuses = {};
+  const alerts = [];
+  for (const terminal of terminals) {
+    const now = terminal.status ?? null;
+    statuses[terminal.address] = now;
+    const before = previous?.[terminal.address];
+    if (before === undefined || before === now || terminal.address === lookingAt) continue;
+    if (now === "blocked" || now === "error") alerts.push({ address: terminal.address, kind: now });
+    else if (before === "working" && (now === "idle" || now === "done")) alerts.push({ address: terminal.address, kind: "done" });
+  }
+  return { statuses, alerts };
+}
+
 // Only accept terminals returned by the core's exact ownership-label query.
 // A saved address by itself never authorizes showing or killing a terminal.
 export function reconcile(state, owned) {
@@ -59,7 +86,8 @@ export function reconcile(state, owned) {
   let sequence = state.sequence;
   for (const terminal of owned) {
     if (!/^t[0-9a-z]+$/.test(terminal.address) || known.has(terminal.address)) continue;
-    tabs.push({ address: terminal.address, title: `Terminal ${++sequence}` });
+    tabs.push({ address: terminal.address, title: nextTitle(tabs) });
+    sequence += 1;
     known.add(terminal.address);
   }
   return {

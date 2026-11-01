@@ -11,10 +11,18 @@ again and you're back where you were. Your layout stays as it is.
 
 - **Ctrl+Shift+Space** shows/hides it, in any layout.
 - Click a terminal to type. **+** adds another shell, starting in your home
-  directory (up to 12).
+  directory (up to 12). Shells are numbered like Herdr's tabs: the lowest
+  number no open tab uses.
 - Switch tabs inside the window without touching the space behind it. Agents
   show their own name and icon, with Herdr's working spinner and
   blocked/done dots.
+- While the window is open, an agent in it that finishes or needs you posts
+  a toast ("Codex finished · In Float Space") and plays Herdr's done or
+  blocked sound, unless you're watching it: Herdr is the active app, the
+  keyboard is in Float Space and that tab is shown. The sounds follow
+  `sounds` in Herdr's settings (your own files, or off). While the window is
+  hidden nothing runs to notice, so there's no alert; the tab's dot still
+  shows it when you reopen.
 - While the keyboard is in Float Space (its terminal, Notes or header), its
   border turns your theme's accent color; clicking outside turns it back.
   Herdr keeps drawing the pane underneath as focused too; Float's border is

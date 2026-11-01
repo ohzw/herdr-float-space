@@ -1,4 +1,4 @@
-import { readState, readSize, reconcile, returnPane, shownTerminal, windowSpec, MAX_TERMINALS } from "./model.js";
+import { readState, readSize, reconcile, returnPane, shownTerminal, windowSpec, nextTitle, MAX_TERMINALS } from "./model.js";
 
 // The one floating window's lifecycle. Copies share one controller and run its
 // commands one at a time, so rapid toggles cannot spawn duplicate shells.
@@ -74,13 +74,13 @@ export class FloatController {
   async create(host) {
     const state = this.state(host);
     if (state.tabs.length >= MAX_TERMINALS) throw new Error(`Float Space supports up to ${MAX_TERMINALS} terminals. Close one before adding another.`);
-    const title = `Terminal ${state.sequence + 1}`;
     const terminal = await host.spawnOwned();
     if (!/^t[0-9a-z]+$/.test(terminal?.address ?? "")) throw new Error("The core did not return a local terminal address.");
+    // Numbered from the tabs after the await, which may have changed meanwhile.
     const latest = this.state(host);
     return this.patch(host, {
-      tabs: [...latest.tabs, { address: terminal.address, title }],
-      active: terminal.address, page: "terminal", sequence: state.sequence + 1,
+      tabs: [...latest.tabs, { address: terminal.address, title: nextTitle(latest.tabs) }],
+      active: terminal.address, page: "terminal", sequence: latest.sequence + 1,
     });
   }
 

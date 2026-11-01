@@ -23,7 +23,7 @@ their programs still running, returning the keyboard to the pane underneath.
     14px icon from the app's program table (an agent's own icon in full color,
     a shell's `>_` tinted `muted`), then the name truncated at 135px. An agent
     shows its program's name ("Codex", "Claude Code"); a shell keeps its tab
-    title, "Terminal 13". The selected tab is `foreground` on `raised` with a
+    title, "Terminal 2": the lowest number no open tab uses. The selected tab is `foreground` on `raised` with a
     1px `border` outline and a 12px × (`dim`, `foreground` on hover) at its
     end; the others are `muted` on `background` with no outline. Every tab gets
     the `hover` background under the pointer.
@@ -58,6 +58,16 @@ their programs still running, returning the keyboard to the pane underneath.
 - **Agent statuses** on terminal tabs: working shows a 12px spinner in the
   `working` color turning once every 900 ms; blocked and done show a 6px dot
   in the `blocked` or `done` color; idle shows nothing.
+- **Alerts** (Herdr alerts only for agents in its spaces): while the window
+  is open, the header checks its agents once a second. Working → idle or done
+  posts `notify` "<name> finished", body "In Float Space", level success;
+  becoming blocked "<name> needs you" (warning), error "<name> stopped with
+  an error" (error). Then `playSound("done")`, or `"blocked"` when any needs
+  the person, unless `settings().sounds.enabled` is false. Nothing for the
+  agent being watched: `window().active`, the keyboard in the window and that
+  tab shown. Statuses live in the window's shared memory so one header copy
+  reports each change; after a gap of over 3 s (hidden, reloaded) the first
+  check only takes note.
 - **Ctrl+Shift+Space** shows or hides the window from anywhere, also while a
   terminal or the window has the keyboard. The optional button does the
   same. Changing spaces or tabs keeps it open; switching layouts closes it,

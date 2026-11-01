@@ -7,7 +7,7 @@ day-to-day comfort is for the person using it to judge.
 
 ## Automated checks
 
-- `npm test`: 40 passing lifecycle and state tests.
+- `npm test`: 43 passing lifecycle and state tests.
 - `python3 -m unittest discover -s tests -p 'test_*.py'`: 4 passing installer tests.
 - `herdr-app check mods/float-space`: passes (0.1.10 and 0.1.11).
 - CI runs the first two on every push and pull request (Node 22 and 24,
@@ -77,6 +77,16 @@ uinput pointer outside this repository) with the window at Small (20 × 50).
 
 Not re-checked on 0.1.11: an opening right after the app starts, which
 needs restarting Herdr.
+
+### Agent alerts (unreleased)
+
+| Check | Result |
+| --- | --- |
+| A probe terminal outside every space (`hc run --no-parent`) reporting OSC 7501 working, then done or idle, with Herdr on screen | No toast from Herdr, so Float Space's own alerts don't double Herdr's |
+| A probe with Float Space's labels reporting working for 4 s, then idle, while the window showed another tab | Adopted as tab "Terminal 1" (shown as "fsprobe"), then a toast "fsprobe finished · In Float Space"; `status` overlays `layout`, `toast` |
+
+Not checked: the sound itself (no audio capture), alerts while Herdr isn't
+the active app, and blocked or error reports.
 
 ## Earlier builds, with real input
 
