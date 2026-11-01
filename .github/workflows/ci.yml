@@ -17,8 +17,8 @@ jobs:
       matrix:
         node: ["22", "24"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
       - run: npm test
@@ -31,10 +31,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.9", "3.13"]
+        python: ["3.10", "3.13"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
       - run: python -m unittest discover -s tests -p 'test_*.py'
@@ -43,7 +43,7 @@ jobs:
     name: Mod files
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: JSON files parse
         run: |
           for f in mods/float-space/mod.json keys.json package.json; do

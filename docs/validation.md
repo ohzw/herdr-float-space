@@ -11,7 +11,7 @@ day-to-day comfort is for the person using it to judge.
 - `python3 -m unittest discover -s tests -p 'test_*.py'`: 4 passing installer tests.
 - `herdr-app check mods/float-space`: passes (0.1.10 and 0.1.11).
 - CI runs the first two on every push and pull request (Node 22 and 24,
-  Python 3.9 and 3.13), plus JSON and installer file-list checks.
+  Python 3.10 and 3.13), plus JSON and installer file-list checks.
 
 The lifecycle tests cover reusing hidden terminals, recovery into a fresh
 controller, refusing to end a terminal whose ownership core no longer

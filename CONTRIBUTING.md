@@ -12,7 +12,7 @@ terminal output, Notes and anything else private.
 
 ## Setting up
 
-You need Node 22 or newer and Python 3.9 or newer. There are no packages to
+You need Node 22 or newer and Python 3.10 or newer. There are no packages to
 install and no build step. To try a change in the app, install your checkout
 over the current one:
 
@@ -48,7 +48,7 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 herdr-app check mods/float-space
 ```
 
-CI runs the first two on Node 22/24 and Python 3.9/3.13, plus JSON and
+CI runs the first two on Node 22/24 and Python 3.10/3.13, plus JSON and
 file-list checks. It can't run Herdr, so also say in the PR what you tried
 in the app, on which OS and Herdr version.
 
