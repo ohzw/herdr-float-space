@@ -50,6 +50,18 @@ export function readState(value) {
   };
 }
 
+// Where a new shell starts: the open space's folder, the same place Herdr
+// starts that space's own terminals. The path is on the space's machine, so
+// a remote space, or one with no folder, starts at home on this machine.
+export function startFolder(spaces, focus, homeDir) {
+  const list = Array.isArray(spaces) ? spaces : [];
+  const space = focus?.space
+    ? list.find(item => item?.id === focus.space)
+    : list.find(item => item?.active);
+  if (!space || space.machine || typeof space.folder !== "string" || space.folder === "") return homeDir;
+  return space.folder;
+}
+
 // A new shell takes the lowest number no open tab uses, as Herdr numbers its
 // tabs: closing Terminal 2 frees "Terminal 2" for the next one.
 export function nextTitle(tabs) {

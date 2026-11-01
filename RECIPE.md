@@ -72,9 +72,11 @@ their programs still running, returning the keyboard to the pane underneath.
   terminal or the window has the keyboard. The optional button does the
   same. Changing spaces or tabs keeps it open; switching layouts closes it,
   and the shortcut opens it again there. Clicks beside it don't close it.
-- The first opening starts a shell in the home folder. Later openings show
-  the tab that was selected, with its program as it was. **+** starts another
-  shell (at most 12). A tab click shows that terminal; Notes shows Notes.
+- The first opening starts a shell in the open space's folder. Later openings
+  show the tab that was selected, with its program as it was. **+** starts
+  another shell in the folder of the space open at that moment (at most 12).
+  A space on another machine, or one with no folder, starts at home. A tab
+  click shows that terminal; Notes shows Notes.
 - **×** ends the selected tab's terminal at once, like closing a tab in
   Herdr. When the shown terminal ends (×, `exit`, or ended elsewhere), the
   window shows the next tab, or Notes after the last one. A last terminal
@@ -144,7 +146,7 @@ their programs still running, returning the keyboard to the pane underneath.
   `openOverlay`, `closeOverlay`, `notify`. **gpui**: `View`, `div`, `svg`,
   `image`, `h_flex`, `v_flex`, `TextareaState`, `Textarea`, `SliderState`,
   `Slider`, `SliderTrack`, `SliderIndicator`, `SliderThumb`.
-- **Programs**: `hc run --bg --keep --no-parent --cwd <home> --json`,
+- **Programs**: `hc run --bg --keep --no-parent --cwd <space folder, else home> --json`,
   `hc ls --json`, `hc kill <address>`, always with the labels
   `herdr.mod=float-space` and `herdr.float-space=<app home>`.
 - **Saved state**: shared key `float-space.v1`, `{version: 2, tabs:
@@ -226,8 +228,9 @@ their programs still running, returning the keyboard to the pane underneath.
   `python3 -m unittest discover -s tests -p 'test_*.py'` pass.
 - Ctrl+Shift+Space opens the window in the shipped `main` layout with no
   layout file changed, and again after switching layouts.
-- The first opening starts one shell in the home folder; hiding and showing
-  again shows the same terminal with the same process.
+- The first opening starts one shell in the open space's folder (home when
+  that space is remote or has no folder); hiding and showing again shows the
+  same terminal with the same process.
 - + adds a shell, tab clicks switch, × ends only that terminal, and killing
   the shown terminal from outside shows the next tab at once.
 - Notes typed in one space appear in another and survive a restart.

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- New shells start in the open space's folder. A space on another machine, or
+  one with no folder, still starts in your home directory.
 - While the window is open, an agent in it that finishes or needs you posts
   a toast and plays Herdr's done or blocked sound (following `sounds` in
   Herdr's settings), unless you're watching it.

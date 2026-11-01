@@ -10,9 +10,10 @@ again and you're back where you were. Your layout stays as it is.
 ## Use
 
 - **Ctrl+Shift+Space** shows/hides it, in any layout.
-- Click a terminal to type. **+** adds another shell, starting in your home
-  directory (up to 12). Shells are numbered like Herdr's tabs: the lowest
-  number no open tab uses.
+- Click a terminal to type. **+** adds another shell, starting in the open
+  space's folder (up to 12). A space on another machine, or one with no
+  folder, starts in your home directory. Shells are numbered like Herdr's
+  tabs: the lowest number no open tab uses.
 - Switch tabs inside the window without touching the space behind it. Agents
   show their own name and icon, with Herdr's working spinner and
   blocked/done dots.

@@ -1,7 +1,7 @@
 import { View, div, svg, image } from "gpui-kit";
 import { h_flex, v_flex, TextareaState, Textarea, SliderState, Slider, SliderTrack, SliderIndicator, SliderThumb } from "gpui-base";
-import { appHome, home, hc, focused, panes, terminals, shared, setShared, settings, props, theme, run, openOverlay, closeOverlay, notify, playSound, window as app } from "herdr";
-import { STATE_KEY, DEFAULT_SIZE, PRESETS, readState, ownedTerminals, tabName, pressedInWindow, agentAlerts } from "./model.js";
+import { appHome, home, hc, focused, spaces, panes, terminals, shared, setShared, settings, props, theme, run, openOverlay, closeOverlay, notify, playSound, window as app } from "herdr";
+import { STATE_KEY, DEFAULT_SIZE, PRESETS, readState, ownedTerminals, tabName, pressedInWindow, agentAlerts, startFolder } from "./model.js";
 import { FloatController } from "./controller.js";
 
 const WINDOW = "__herdr_float_space_window_v1";
@@ -25,7 +25,7 @@ function host() {
       if (!Array.isArray(data.terminals)) throw new Error("List Float Space terminals: missing terminal list");
       return data.terminals;
     },
-    spawnOwned: async () => resultJSON(await hc(["run", "--bg", "--keep", "--no-parent", "--cwd", home(), "--json", ...labels]), "Start terminal"),
+    spawnOwned: async () => resultJSON(await hc(["run", "--bg", "--keep", "--no-parent", "--cwd", startFolder(spaces(), focused(), home()), "--json", ...labels]), "Start terminal"),
     killOwned: async address => {
       const result = await hc(["kill", address]);
       if (result.code !== 0) throw new Error(result.stderr.trim() || "Could not end terminal");

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { FloatController } from "../mods/float-space/controller.js";
-import { readState, reconcile, returnPane, ownedTerminals, tabName, pressedInWindow, DEFAULT_SIZE, PRESETS, windowSpec, nextTitle, agentAlerts } from "../mods/float-space/model.js";
+import { readState, reconcile, returnPane, ownedTerminals, tabName, pressedInWindow, DEFAULT_SIZE, PRESETS, windowSpec, nextTitle, agentAlerts, startFolder } from "../mods/float-space/model.js";
 
 // The block a window shows under its header: a terminal or Notes.
 function body(spec) {
@@ -533,6 +533,26 @@ test("recovered shells are numbered after the open tabs too", () => {
   const after = reconcile(state, [{ address: "t1" }, { address: "t2" }]);
   assert.deepEqual(after.tabs.map(tab => tab.title), ["Terminal 1", "Terminal 2"]);
   assert.equal(after.sequence, 41);
+});
+
+test("a new shell starts in the open space's folder, or at home when that path is not on this machine", () => {
+  const homeDir = "/home/thuanlee";
+  const spaces = [
+    { id: "s1", folder: "/work/app", machine: null, active: true },
+    { id: "s2", folder: "/work/other", machine: null, active: false },
+    { id: "s3", folder: "/remote/repo", machine: "laptop", active: false },
+    { id: "s4", folder: "", machine: null, active: false },
+  ];
+  assert.equal(startFolder(spaces, { space: "s1" }, homeDir), "/work/app");
+  assert.equal(startFolder(spaces, { space: "s2" }, homeDir), "/work/other");
+  assert.equal(startFolder(spaces, { space: "s3" }, homeDir), homeDir);
+  assert.equal(startFolder(spaces, { space: "s4" }, homeDir), homeDir);
+  assert.equal(startFolder(spaces, null, homeDir), "/work/app");
+  assert.equal(startFolder([{ id: "s9", folder: "/remote/repo", machine: "laptop", active: true }], null, homeDir), homeDir);
+  assert.equal(startFolder(spaces, { space: "missing" }, homeDir), homeDir);
+  assert.equal(startFolder([], { space: "s1" }, homeDir), homeDir);
+  assert.equal(startFolder(null, null, homeDir), homeDir);
+  assert.equal(startFolder([{ id: "s1", folder: 12, machine: null, active: true }], null, homeDir), homeDir);
 });
 
 test("agent alerts: finishing, needing the person, never the one being watched", () => {
