@@ -50,16 +50,40 @@ export function readState(value) {
   };
 }
 
-// Where a new shell starts: the open space's folder, the same place Herdr
-// starts that space's own terminals. The path is on the space's machine, so
-// a remote space, or one with no folder, starts at home on this machine.
-export function startFolder(spaces, focus, homeDir) {
+function path(value) {
+  return typeof value === "string" && value !== "" ? value : null;
+}
+
+// The directory the open space is actually in. Herdr's stored space folder is
+// only where its terminals started, and it stays there after a cd. A new tab
+// in Herdr uses the focused terminal's live folder instead. Clicking into
+// this window reports that scratch shell (no pane), so that cwd is ignored
+// and the space's own pane is used.
+function liveFolder(space, focus, panes) {
+  if (focus?.pane && focus.space === space.id) {
+    const cwd = path(focus.cwd);
+    if (cwd) return cwd;
+  }
+  const tabs = Array.isArray(space.tabs) ? space.tabs : [];
+  const tabIds = new Set(tabs.map(tab => tab.id));
+  const active = tabs.find(tab => tab.active);
+  const list = (Array.isArray(panes) ? panes : []).filter(pane =>
+    pane && tabIds.has(pane.tab) && path(pane.cwd));
+  const shown = active ? list.filter(pane => pane.tab === active.id) : list;
+  const pool = shown.length ? shown : list;
+  return path((pool.find(pane => pane.focused) ?? pool[0])?.cwd);
+}
+
+// Where a new shell starts. A remote space's path is on another machine, so
+// the shell starts at home here. With no live folder, the space's own start
+// folder, then home.
+export function startFolder(spaces, focus, homeDir, panes) {
   const list = Array.isArray(spaces) ? spaces : [];
   const space = focus?.space
     ? list.find(item => item?.id === focus.space)
     : list.find(item => item?.active);
-  if (!space || space.machine || typeof space.folder !== "string" || space.folder === "") return homeDir;
-  return space.folder;
+  if (!space || space.machine) return homeDir;
+  return liveFolder(space, focus, panes) ?? path(space.folder) ?? homeDir;
 }
 
 // A new shell takes the lowest number no open tab uses, as Herdr numbers its

@@ -25,7 +25,7 @@ function host() {
       if (!Array.isArray(data.terminals)) throw new Error("List Float Space terminals: missing terminal list");
       return data.terminals;
     },
-    spawnOwned: async () => resultJSON(await hc(["run", "--bg", "--keep", "--no-parent", "--cwd", startFolder(spaces(), focused(), home()), "--json", ...labels]), "Start terminal"),
+    spawnOwned: async () => resultJSON(await hc(["run", "--bg", "--keep", "--no-parent", "--cwd", startFolder(spaces(), focused(), home(), panes()), "--json", ...labels]), "Start terminal"),
     killOwned: async address => {
       const result = await hc(["kill", address]);
       if (result.code !== 0) throw new Error(result.stderr.trim() || "Could not end terminal");

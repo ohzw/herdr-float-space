@@ -535,17 +535,23 @@ test("recovered shells are numbered after the open tabs too", () => {
   assert.equal(after.sequence, 41);
 });
 
-test("a new shell starts in the open space's folder, or at home when that path is not on this machine", () => {
+test("a new shell starts where the open space's terminal is, not the space's stored folder", () => {
   const homeDir = "/home/thuanlee";
   const spaces = [
-    { id: "s1", folder: "/work/app", machine: null, active: true },
-    { id: "s2", folder: "/work/other", machine: null, active: false },
+    { id: "s1", folder: "/work/app", machine: null, active: true, tabs: [{ id: "tab1", active: true }] },
+    { id: "s2", folder: "/work/other", machine: null, active: false, tabs: [{ id: "tab2", active: true }] },
     { id: "s3", folder: "/remote/repo", machine: "laptop", active: false },
     { id: "s4", folder: "", machine: null, active: false },
   ];
-  assert.equal(startFolder(spaces, { space: "s1" }, homeDir), "/work/app");
-  assert.equal(startFolder(spaces, { space: "s2" }, homeDir), "/work/other");
-  assert.equal(startFolder(spaces, { space: "s3" }, homeDir), homeDir);
+  const here = { space: "s1", pane: "p1", terminal: "t1", cwd: "/work/app/mods" };
+  assert.equal(startFolder(spaces, here, homeDir), "/work/app/mods");
+  assert.equal(startFolder(
+    [{ id: "s1", folder: homeDir, machine: null, active: true, tabs: [{ id: "tab1", active: true }] }],
+    { space: "s1", pane: "p1", terminal: "t1", cwd: "/work/app" },
+    homeDir,
+  ), "/work/app");
+  assert.equal(startFolder(spaces, { space: "s2", pane: "p2", cwd: "/work/other" }, homeDir), "/work/other");
+  assert.equal(startFolder(spaces, { space: "s3", pane: "p3", cwd: "/remote/repo" }, homeDir), homeDir);
   assert.equal(startFolder(spaces, { space: "s4" }, homeDir), homeDir);
   assert.equal(startFolder(spaces, null, homeDir), "/work/app");
   assert.equal(startFolder([{ id: "s9", folder: "/remote/repo", machine: "laptop", active: true }], null, homeDir), homeDir);
@@ -553,6 +559,13 @@ test("a new shell starts in the open space's folder, or at home when that path i
   assert.equal(startFolder([], { space: "s1" }, homeDir), homeDir);
   assert.equal(startFolder(null, null, homeDir), homeDir);
   assert.equal(startFolder([{ id: "s1", folder: 12, machine: null, active: true }], null, homeDir), homeDir);
+  // A click in the scratch terminal has no pane. Use the space's pane, not that shell.
+  assert.equal(startFolder(
+    [{ id: "s1", folder: homeDir, machine: null, active: true, tabs: [{ id: "tab1", active: true }] }],
+    { space: "s1", pane: null, terminal: "t30", cwd: homeDir },
+    homeDir,
+    [{ pane: "p1", tab: "tab1", terminal: "t1", cwd: "/work/app", focused: true }],
+  ), "/work/app");
 });
 
 test("agent alerts: finishing, needing the person, never the one being watched", () => {
