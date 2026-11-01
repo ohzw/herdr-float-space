@@ -206,7 +206,7 @@ their programs still running, returning the keyboard to the pane underneath.
 - Renaming the mod: the name is in its folder, the `mods/float-space/*.svg`
   paths, `mod: "float-space"` in the overlay specs, the `herdr.mod` label, the
   `float-space.v1` key, the two `globalThis` names and `keys.json`.
-- Built and checked on Herdr 0.1.10, core 0.1.15, Linux. It runs `hc` and
+- Built on Herdr 0.1.10, core 0.1.15; tested on 0.1.11, core 0.1.16, Linux. It runs `hc` and
   local shells, keeps Notes as plaintext in `shared.json`, makes no network
   requests and reads no files outside the app.
 

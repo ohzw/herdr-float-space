@@ -1,0 +1,62 @@
+name: Bug report
+description: Something in Float Space doesn't work as described
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please leave out anything private: the output
+        of your terminals, your Notes, and paths you'd rather not share.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you saw instead.
+      placeholder: |
+        1. Pressed Ctrl+Shift+Space
+        2. Clicked the size button
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: herdr
+    attributes:
+      label: Herdr versions
+      description: Output of `herdr-app --version` and `hc --version`
+      placeholder: herdr-app 0.1.11, hc 0.1.16
+    validations:
+      required: true
+  - type: input
+    id: mod
+    attributes:
+      label: Float Space version or commit
+      description: The `version` in `~/.config/herdr-app/mods/float-space/.float-space-install.json`, or the commit you installed from
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux (Wayland)
+        - Linux (X11)
+        - macOS
+        - Windows
+    validations:
+      required: true
+  - type: input
+    id: layout
+    attributes:
+      label: Layout
+      description: The layout in use (`herdr-app status` shows it), e.g. the shipped `main` or a personal copy
+  - type: textarea
+    id: status
+    attributes:
+      label: herdr-app status
+      description: The `errors` list from `herdr-app status`, and `herdr-app check ~/.config/herdr-app/mods/float-space`
+      render: json
+  - type: textarea
+    id: shot
+    attributes:
+      label: Screenshot
+      description: Optional. `herdr-app shot` saves the window; crop out anything private.

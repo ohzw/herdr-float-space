@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Tested with Herdr 0.1.11 and core 0.1.16. The first opening after the mod
+  loads no longer pauses, and the header's tooltips show; both were Herdr
+  fixes, so nothing changed in the mod.
+- `CONTRIBUTING.md`, issue forms and CI (Node and Python tests, file checks).
+
 ## 0.1.0 — 2026-10-31
 
 First release.

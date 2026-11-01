@@ -34,8 +34,9 @@ again and you're back where you were. Your layout stays as it is.
 
 ## Install
 
-Requires the Herdr desktop app and `hc`. Built and checked on Linux with
-Herdr **0.1.10** and core **0.1.15**; macOS and Windows have not been tested.
+Requires the Herdr desktop app and `hc`. Tested on Linux with Herdr
+**0.1.11** and core **0.1.16** (first built on 0.1.10 / 0.1.15); macOS and
+Windows have not been tested.
 
 Float Space runs `hc` to start, list and end its own shells, and keeps Notes
 as plaintext in Herdr's `shared.json`. It makes no network requests.
@@ -104,8 +105,6 @@ isn't its own, and it finds its shells again if its saved tab list is lost.
   menu for its own window). Use **+** and the tab's **×**; "Send right-clicks
   to pane" works.
 - Mods can't resize a window by its edges; use **Window size**.
-- Opening right after the mod (re)loads can pause for a moment while Herdr
-  starts the terminal view.
 
 ## Development
 
@@ -119,7 +118,7 @@ No npm packages or build step. `model.js` holds saved state and the window's
 layout, `controller.js` the window's lifecycle, `main.js` the views and Herdr
 calls. [RECIPE.md](RECIPE.md) is the brief to rebuild it from scratch;
 [docs/validation.md](docs/validation.md) records the checks run on the real
-app.
+app. See [CONTRIBUTING.md](CONTRIBUTING.md) before sending a change.
 
 ## Remove
 

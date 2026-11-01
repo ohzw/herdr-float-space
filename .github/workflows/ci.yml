@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  node:
+    name: Lifecycle tests (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["22", "24"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm test
+      - name: Syntax-check the view module
+        run: node --check mods/float-space/main.js
+
+  python:
+    name: Installer tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m unittest discover -s tests -p 'test_*.py'
+
+  files:
+    name: Mod files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: JSON files parse
+        run: |
+          for f in mods/float-space/mod.json keys.json package.json; do
+            python3 -m json.tool "$f" > /dev/null || { echo "::error file=$f::invalid JSON"; exit 1; }
+          done
+      - name: Installer copies every file the mod ships
+        run: |
+          python3 - <<'EOF'
+          import importlib.util, pathlib, sys
+          spec = importlib.util.spec_from_file_location("installer", "scripts/install.py")
+          installer = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(installer)
+          shipped = {p.name for p in pathlib.Path("mods/float-space").iterdir()} - installer.GENERATED
+          listed = set(installer.FILES)
+          if shipped != listed:
+              print(f"::error file=scripts/install.py::FILES differs from mods/float-space: "
+                    f"missing {sorted(shipped - listed)}, extra {sorted(listed - shipped)}")
+              sys.exit(1)
+          EOF
+      - name: Listing assets exist
+        run: test -f RECIPE.md && test -f preview.png

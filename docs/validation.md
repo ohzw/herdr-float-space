@@ -1,14 +1,17 @@
 # Validation
 
-Checked on 2026-10-31 with Herdr app 0.1.10, core 0.1.15, Linux (KDE
-Wayland), in the shipped `main` layout. This records technical checks;
+Checked on 2026-10-31 with Herdr app 0.1.10, core 0.1.15, and re-checked on
+2026-11-01 with Herdr app 0.1.11, core 0.1.16 (see "Herdr 0.1.11"), on Linux
+(KDE Wayland), in the shipped `main` layout. This records technical checks;
 day-to-day comfort is for the person using it to judge.
 
 ## Automated checks
 
 - `npm test`: 40 passing lifecycle and state tests.
-- `python3 -m unittest discover -s tests -p 'test_*.py'`: 3 passing installer tests.
-- `herdr-app check mods/float-space`: passes.
+- `python3 -m unittest discover -s tests -p 'test_*.py'`: 4 passing installer tests.
+- `herdr-app check mods/float-space`: passes (0.1.10 and 0.1.11).
+- CI runs the first two on every push and pull request (Node 22 and 24,
+  Python 3.9 and 3.13), plus JSON and installer file-list checks.
 
 The lifecycle tests cover reusing hidden terminals, recovery into a fresh
 controller, refusing to end a terminal whose ownership core no longer
@@ -51,11 +54,29 @@ matched the installer's record again.
 
 Not checked with real input in this build: closing the shown tab with ×
 since it shows the next tab before ending the terminal, clicking a header
-tab from a pane outside, the Small preset (20 × 50),
-clicking Notes, presets, ×, the size button a second time, dragging the
-window, and typing into Notes. A
+tab from a pane outside, clicking Notes, presets, ×, dragging the window,
+and typing into Notes. The size button a second time was checked with real
+input on 0.1.11, below. A
 core reply slower than the 250 ms Herdr gives `close()` would leave the
 window closed until the next press.
+
+## Herdr 0.1.11
+
+Herdr 0.1.11 fixed three things this file had left open: the window freezing
+while mods run, popups stacking when opened again, and mod tooltips in
+embedded windows. Re-checked on 2026-11-01 with core 0.1.16, the mod files
+unchanged from 0.1.0. The last two used real mouse events (a temporary
+uinput pointer outside this repository) with the window at Small (20 × 50).
+
+| Check | Result |
+| --- | --- |
+| First opening after a hot reload (a comment appended to the installed `main.js`, then the original restored), 11 times with Herdr on screen and every screenshot a new frame | The window was in the first screenshot each time (0.13–0.34 s after the command); `status` reported it after 0.04–0.27 s and answered within 0.04 s throughout, so the main thread stayed free. Warm openings: same first screenshot |
+| The same, 8 earlier tries in that session | Not counted: the detector only looked where the Large window's header sits, and the window had meanwhile been set to Small and moved |
+| Hovering the size, Notes and Hide buttons for 1.6 s | Tooltips shown: "Window size", "Notes shared across your spaces", "Hide · Ctrl+Shift+Space" |
+| Clicking the size button, then clicking it again | First click opened the popup (`status` overlays `layout`, `float-space`); the second closed it (`layout` only), with no second popup and the size left at Small |
+
+Not re-checked on 0.1.11: an opening right after the app starts, which
+needs restarting Herdr.
 
 ## Earlier builds, with real input
 
@@ -76,9 +97,10 @@ confirmation before ending a terminal:
 | Drag the width and height sliders, Escape, Apply | Drafts didn't resize the terminal; Escape kept the size; Apply saved it |
 
 Hide and show took 42–195 ms once warm (command to state change, through the
-CLI). The first opening after the mod loads took up to about 3 s while the
-app's main thread was busy; Herdr also rebuilds the terminal view whenever
-the window is replaced.
+CLI). On Herdr 0.1.10 the first opening after the mod loads took up to about
+3 s while the app's main thread was busy; on 0.1.11 it no longer did (see
+above). Herdr also rebuilds the terminal view whenever the window is
+replaced.
 
 ## Host limits observed
 
