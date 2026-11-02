@@ -578,3 +578,144 @@ test("agent alerts: finishing, needing the person, never the one being watched",
   const quiet = agentAlerts({ t1: "idle", t2: null }, [{ address: "t1", status: "done" }, { address: "t2", status: "idle" }], null);
   assert.deepEqual(quiet.alerts, [], "only working → idle/done counts as finishing");
 });
+
+test("a failed reconciliation retries the same snapshot and preserves notes", async () => {
+  const { controller, host, data } = fixture();
+  await controller.handle("show", host);
+  const first = data.state.active;
+  data.owned.push({ address: "t99" });
+  host.liveOwned = () => data.owned;
+  host.listOwned = async () => { throw new Error("core temporarily unavailable"); };
+  assert.equal(controller.needsReconcile(host), true);
+  await assert.rejects(controller.handle("reconcile", host), /temporarily unavailable/);
+  data.state.notes = "Written while core was unavailable";
+  assert.equal(controller.needsReconcile(host), true);
+  host.listOwned = async () => data.owned;
+  await controller.handle("reconcile", host);
+  assert.equal(controller.needsReconcile(host), false);
+  assert.deepEqual(data.state.tabs.map(t => t.address), [first, "t99"]);
+  assert.equal(data.state.notes, "Written while core was unavailable");
+  assert.equal(data.opened.length, 1);
+});
+
+test("a successfully confirmed lagging snapshot is not queried on every tick", async () => {
+  const { controller, host, data } = fixture();
+  await controller.handle("show", host);
+  host.liveOwned = () => [];
+  let queries = 0;
+  host.listOwned = async () => { queries++; return data.owned; };
+  for (let i = 0; i < 10; i++) {
+    if (controller.needsReconcile(host)) await controller.handle("reconcile", host);
+  }
+  assert.equal(queries, 1);
+  host.liveOwned = () => data.owned;
+  assert.equal(controller.needsReconcile(host), false);
+  host.liveOwned = () => [];
+  assert.equal(controller.needsReconcile(host), true);
+  await controller.handle("hide", host);
+  assert.equal(controller.needsReconcile(host), false);
+});
+
+test("an old reconciliation cannot acknowledge a newer snapshot", async () => {
+  const { controller, host, data } = fixture();
+  await controller.handle("show", host);
+  let live = [];
+  host.liveOwned = () => live;
+  host.listOwned = async () => {
+    live = [...data.owned, { address: "t99" }];
+    return data.owned;
+  };
+  await controller.handle("reconcile", host);
+  assert.equal(controller.needsReconcile(host), true);
+});
+
+test("a toast reveals its own terminal after hiding, without spawning or ending a shell", async () => {
+  const { controller, host, data } = fixture();
+  await controller.handle("show", host);
+  const target = data.state.active;
+  await controller.handle("new", host);
+  await controller.handle("notes", host);
+  data.state.notes = "Keep this note";
+  await controller.handle("hide", host);
+  data.current = { space: "s2", tab: "tab2", pane: "pane2", terminal: "t2" };
+  await controller.handle(`reveal-${target}`, host);
+  assert.equal(body(data.opened.at(-1)).content.terminal, target);
+  assert.equal(data.state.page, "terminal");
+  assert.equal(data.state.notes, "Keep this note");
+  assert.equal(data.owned.length, 2);
+  assert.deepEqual(data.killed, []);
+  await controller.handle("hide", host);
+  assert.equal(data.returned, "pane2");
+});
+
+test("a toast recovers its terminal into a fresh controller", async () => {
+  const { host, data } = fixture();
+  data.owned = [{ address: "t99" }];
+  const fresh = new FloatController();
+  await fresh.handle("reveal-t99", host);
+  assert.equal(body(data.opened.at(-1)).content.terminal, "t99");
+  assert.equal(data.owned.length, 1);
+});
+
+test("a stale toast cannot show an unrelated terminal, even in a lagging live snapshot", async () => {
+  const { controller, host, data } = fixture();
+  await controller.handle("show", host);
+  const target = data.state.active;
+  await controller.handle("hide", host);
+  host.liveOwned = () => [{ address: target }];
+  data.owned = [];
+  const before = structuredClone(data.state);
+  await assert.rejects(controller.handle(`reveal-${target}`, host), /no longer running/);
+  assert.deepEqual(data.state, before);
+  assert.equal(controller.overlay, null);
+  assert.equal(data.opened.length, 1);
+  assert.deepEqual(data.killed, []);
+});
+
+test("toast ownership failures leave the currently shown page intact", async () => {
+  const { controller, host, data } = fixture();
+  await controller.handle("show", host);
+  await controller.handle("notes", host);
+  const before = structuredClone(data.state);
+  const mounted = controller.overlay;
+  host.listOwned = async () => { throw new Error("offline"); };
+  await assert.rejects(controller.handle(`reveal-${data.state.active}`, host), /offline/);
+  assert.deepEqual(data.state, before);
+  assert.equal(controller.overlay, mounted);
+});
+
+test("keyboard navigation wraps through Notes and terminals without touching processes", async () => {
+  const { controller, host, data } = fixture();
+  await controller.handle("show", host);
+  const first = data.state.active;
+  await controller.handle("new", host);
+  const second = data.state.active;
+  data.state.notes = "Unsaved command draft";
+  await controller.handle("next", host);
+  assert.equal(data.state.page, "notes");
+  await controller.handle("next", host);
+  assert.equal(data.state.active, first);
+  assert.equal(data.state.page, "terminal");
+  await controller.handle("prev", host);
+  assert.equal(data.state.page, "notes");
+  await controller.handle("prev", host);
+  assert.equal(data.state.active, second);
+  assert.equal(data.state.page, "terminal");
+  assert.equal(data.owned.length, 2);
+  assert.deepEqual(data.killed, []);
+  assert.equal(data.state.notes, "Unsaved command draft");
+});
+
+test("keyboard navigation is a no-op while hidden or with only Notes", async () => {
+  const { controller, host, data } = fixture();
+  data.state.page = "notes";
+  await controller.handle("show", host);
+  await controller.handle("next", host);
+  await controller.handle("prev", host);
+  assert.equal(data.opened.length, 1);
+  assert.equal(data.owned.length, 0);
+  await controller.handle("hide", host);
+  await controller.handle("next", host);
+  assert.equal(controller.overlay, null);
+  assert.equal(data.opened.length, 1);
+});

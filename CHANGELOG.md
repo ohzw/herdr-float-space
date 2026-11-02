@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Failed terminal-list synchronization retries on the next check, even when
+  the live snapshot hasn't changed.
+- Clicking an agent alert opens its Float Space tab, including after hiding
+  the window. A stale alert never starts a replacement shell.
+- Header/Notes shortcuts: Ctrl+Tab and Ctrl+Shift+Tab cycle pages,
+  Ctrl+Shift+T starts a terminal, Ctrl+Shift+N opens Notes. Opening Notes
+  focuses its editor. Embedded terminals keep Herdr's existing bindings.
 - New shells start in the folder the open space's terminal is in now, the
   same place a new Herdr tab starts. A space on another machine still starts
   in your home directory.

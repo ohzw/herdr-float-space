@@ -7,7 +7,7 @@ day-to-day comfort is for the person using it to judge.
 
 ## Automated checks
 
-- `npm test`: 43 passing lifecycle and state tests.
+- `npm test`: 53 passing lifecycle and state tests (2026-11-02).
 - `python3 -m unittest discover -s tests -p 'test_*.py'`: 4 passing installer tests.
 - `herdr-app check mods/float-space`: passes (0.1.10 and 0.1.11).
 - CI runs the first two on every push and pull request (Node 22 and 24,
@@ -87,6 +87,33 @@ needs restarting Herdr.
 
 Not checked: the sound itself (no audio capture), alerts while Herdr isn't
 the active app, and blocked or error reports.
+
+### Retry, clickable alerts and shortcuts (2026-11-02)
+
+Tested with the installed Herdr 0.1.11 and core 0.1.16 in an isolated Xvfb
+display, app home and core session. Mouse/key events were sent only to that
+display. Probe programs reported OSC 7501 states; no real agents or user
+terminals were used. Screenshots were inspected.
+
+| Check | Result |
+| --- | --- |
+| Failed reconciliation, unchanged live snapshot, then a successful query | Unit test: the same mismatch is eligible again; new tabs appear and Notes survive |
+| Successful query against a lagging snapshot, then ten checks | Unit test: only one query; catching up clears the acknowledgement, and later mismatches are eligible again |
+| Snapshot changes while core answers | Unit test: the new snapshot remains eligible |
+| Ctrl+Shift+T from Notes after typing, before its debounce finishes | One Float Space shell created; text saved before switching |
+| Ctrl+Tab / Ctrl+Shift+Tab from the header and Notes | Wrap through Notes and terminal tabs in header order |
+| Open Notes, then type without clicking its editor | Text reaches Notes |
+| Ctrl+Shift+T after clicking the workspace outside Float Space | Creates a normal Herdr tab; Float Space's tab count stays unchanged |
+| Two agents finish while another page is shown; hide Float Space, then click each native toast | Each toast opens its own terminal, including after hiding; both temporary receivers are cleaned up |
+| Blocked agent alert, hide Float Space, end that probe, click its toast | Reports that the terminal is no longer running; no window reopened and no shell created |
+| An unclicked toast expires | Its receiver also disappears |
+| Initial toast implementation forwarded a click to a new command copy and immediately closed its receiver | The new copy stalled on its first `hc` call; changed to finish the reveal inside the receiver before closing it |
+
+The four new shortcuts are scoped to `mod:float-space`, so they apply to
+the header and Notes. Herdr 0.1.11 gives embedded terminals the general
+`Terminal` key context; their existing terminal/workspace shortcuts remain.
+These checks do not establish shortcut support inside an embedded terminal,
+macOS/Windows compatibility, or sound playback.
 
 ## Earlier builds, with real input
 

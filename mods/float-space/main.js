@@ -1,6 +1,6 @@
 import { View, div, svg, image } from "gpui-kit";
 import { h_flex, v_flex, TextareaState, Textarea, SliderState, Slider, SliderTrack, SliderIndicator, SliderThumb } from "gpui-base";
-import { appHome, home, hc, focused, spaces, panes, terminals, shared, setShared, settings, props, theme, run, openOverlay, closeOverlay, notify, playSound, window as app } from "herdr";
+import { appHome, home, hc, focused, spaces, panes, terminals, shared, setShared, settings, props, theme, run, openOverlay, closeOverlay, notify, playSound, nextCommand, window as app } from "herdr";
 import { STATE_KEY, DEFAULT_SIZE, PRESETS, readState, ownedTerminals, tabName, pressedInWindow, agentAlerts, startFolder } from "./model.js";
 import { FloatController } from "./controller.js";
 
@@ -65,6 +65,18 @@ function release(owner) {
   if (memory.lease?.owner === owner) memory.lease = null;
 }
 
+async function executeCommand(command, owner, cx) {
+  try {
+    await claim(cx, owner);
+    await windowShared().controller.handle(command, host());
+  } catch (error) {
+    notify({ title: "Float Space", body: String(error?.message ?? error), level: "error" });
+  } finally {
+    release(owner);
+    closeOverlay(owner);
+  }
+}
+
 function stop(_event, cx) { cx.stop_propagation(); }
 
 // The header and the edge blocks draw one border. Each waits on the same
@@ -118,7 +130,10 @@ function watchAgents() {
     const tab = state.tabs.find(item => item.address === alert.address);
     const name = tab ? tabName(tab, live.find(item => item.address === alert.address)) : "An agent";
     const { says, level } = ALERTS[alert.kind];
-    notify({ title: `${name} ${says}`, body: "In Float Space", level });
+    // The receiver lives as long as its toast, even after the main window is
+    // hidden. Commands reach shown mod copies only in Herdr 0.1.11.
+    openOverlay({ mod: "float-space", kind: "window", frame: "none", width: 2, height: 2,
+      at: { x: 0, y: 0 }, props: { role: "alert", address: alert.address, title: `${name} ${says}`, level } });
   }
   // Herdr's own sounds, or the files settings.json names; off with them.
   if (settings().sounds?.enabled !== false) {
@@ -149,17 +164,25 @@ export default class FloatSpace extends View {
     this.role = role ?? (this.copyProps.overlay ? "run" : "launcher");
     if (this.role === "run") {
       const owner = this.copyProps.overlay;
+      cx.spawn(cx => executeCommand(this.copyProps.command ?? "toggle", owner, cx));
+    } else if (this.role === "alert") {
+      const { overlay, address, title, level } = this.copyProps;
+      const command = `alert-${overlay}`;
+      const timeout = level === "success" ? 5000 : 8000;
+      this.toast = notify({ title, body: "In Float Space · Click to open", level, timeout,
+        action: { name: `float-space.${command}` } });
       cx.spawn(async cx => {
-        try {
-          await claim(cx, owner);
-          await windowShared().controller.handle(this.copyProps.command ?? "toggle", host());
-        } catch (error) {
-          notify({ title: "Float Space", body: String(error?.message ?? error), level: "error" });
-        } finally {
-          release(owner);
-          closeOverlay(owner);
+        for (;;) {
+          if (await nextCommand() !== command) continue;
+          this.expiry?.cancel();
+          // This receiver survives the main window's remount. Finish here:
+          // closing immediately after handing work to a new copy can cancel
+          // that copy's first hc call in Herdr 0.1.11.
+          await executeCommand(`reveal-${address}`, overlay, cx);
+          return;
         }
       });
+      this.expiry = cx.timer.after(timeout + 250, () => closeOverlay(overlay));
     } else if (this.role === "size") {
       // Lets the size button close this popup instead of opening another.
       globalThis[SIZE_POPUP] = { overlay: this.copyProps.overlay };
@@ -180,28 +203,33 @@ export default class FloatSpace extends View {
       });
       this.notes.on("focus", () => { windowShared().notesFocused = true; });
       this.notes.on("blur", () => { windowShared().notesFocused = false; });
+      cx.timer.after(0, () => this.notes.focus());
     } else if (this.role === "bar") {
       this.handle = cx.focus_handle();
       // Herdr 0.1.10's pane.focus only addresses main-layout terminals.
       // Focus our chrome instead of leaving typing in the agent underneath.
       cx.timer.after(0, () => { this.handle.focus(); showFocus(true); });
       drawsBorder(cx);
-      // Core state is live: reconcile only when the snapshot disagrees with the
-      // tabs, once per snapshot, while the window is open.
+      // A failed core query must remain eligible on the next tick.
       cx.timer.every(3000, () => {
         const memory = windowShared();
-        const live = ownedTerminals(terminals(), appHome());
-        const tabs = readState(shared(STATE_KEY)).tabs;
-        const seen = live.map(terminal => terminal.address).sort().join(" ");
-        if (memory.lease || seen === memory.reconciled) return;
-        if (live.length === tabs.length && tabs.every(tab => live.some(terminal => terminal.address === tab.address))) return;
-        memory.reconciled = seen;
-        act("reconcile");
+        if (!memory.lease && memory.controller.needsReconcile(host())) act("reconcile");
       });
       // Presses update the border at once; this catches the rest, such as
       // Herdr focusing another pane from the keyboard.
       cx.timer.every(150, () => showFocus(this.keyboard()));
       cx.timer.every(1000, () => watchAgents());
+      // Only the header consumes navigation commands. Other shown copies
+      // receive the same message; executing here prevents duplicate shells.
+      cx.spawn(async () => {
+        for (;;) {
+          const command = await nextCommand();
+          if (!["next", "prev", "new", "notes"].includes(command)) continue;
+          if (this.copyProps.generation !== windowShared().controller.generation) continue;
+          if (globalThis[SIZE_POPUP]?.overlay || !this.keyboard()) continue;
+          act(command);
+        }
+      });
     } else if (this.role === "edge") {
       drawsBorder(cx);
     }
@@ -235,6 +263,7 @@ export default class FloatSpace extends View {
   }
 
   async close() {
+    if (this.toast) closeOverlay(this.toast);
     if (this.role === "notes") windowShared().notesFocused = false;
     if (this.role === "size" && globalThis[SIZE_POPUP]?.overlay === this.copyProps.overlay) globalThis[SIZE_POPUP] = { closedAt: Date.now() };
     if (this.pendingSave) {
@@ -346,10 +375,10 @@ export default class FloatSpace extends View {
       .child(h_flex().flex_1().min_h(0).px(6).gap(6).items_center().border_b(1).border_color(t.border)
       .text_color(t.foreground).text_size(12)
       .child(this.tab("float-notes-tab", svg("mods/float-space/notes.svg").size(14).flex_none().text_color(notes ? t.foreground : t.muted), "Notes",
-        notes, () => act("notes")).tooltip("Notes shared across your spaces"))
+        notes, () => act("notes")).tooltip("Notes shared across your spaces · Ctrl+Shift+N"))
       .when(tabs.length > 0, el => el.child(div().w(1).h(14).flex_none().bg(t.border)))
       .child(h_flex().id("float-terminal-tabs").flex_1().h_full().min_w(0).items_center().gap(2).overflow_x_scrollbar().children(tabs))
-      .child(this.iconButton("float-new-terminal", "plus", "New terminal", () => act("new")))
+      .child(this.iconButton("float-new-terminal", "plus", "New terminal · Ctrl+Shift+T", () => act("new")))
       .child(this.iconButton("float-size", "size", "Window size", () => this.toggleSize(), () => this.pressSize()))
       .child(this.iconButton("float-hide", "hide", "Hide · Ctrl+Shift+Space", () => act("hide"))));
   }
@@ -414,7 +443,7 @@ export default class FloatSpace extends View {
     if (this.role === "notes") return this.renderNotes();
     if (this.role === "size") return this.renderSize();
     if (this.role === "edge") return this.renderEdge();
-    if (this.role === "run") return div();
+    if (this.role === "run" || this.role === "alert") return div();
     return this.renderLauncher();
   }
 }

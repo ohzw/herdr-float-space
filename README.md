@@ -10,6 +10,13 @@ again and you're back where you were. Your layout stays as it is.
 ## Use
 
 - **Ctrl+Shift+Space** shows/hides it, in any layout.
+- With the **header or Notes focused**, **Ctrl+Tab** / **Ctrl+Shift+Tab**
+  cycle through Notes and terminal tabs, **Ctrl+Shift+T** adds a shell, and
+  **Ctrl+Shift+N** opens Notes. Notes takes the keyboard when opened.
+  These bindings are scoped to the mod: when typing in an embedded terminal,
+  Herdr's terminal/workspace bindings still apply. Click the header to use
+  Float Space's tab shortcuts; Herdr 0.1.11 has no separate key context for
+  an overlay terminal.
 - Click a terminal to type. **+** adds another shell, starting in the folder
   the open space's terminal is in now (up to 12), the same place a new Herdr
   tab starts. A space on another machine starts in your home directory.
@@ -21,9 +28,11 @@ again and you're back where you were. Your layout stays as it is.
   a toast ("Codex finished · In Float Space") and plays Herdr's done or
   blocked sound, unless you're watching it: Herdr is the active app, the
   keyboard is in Float Space and that tab is shown. The sounds follow
-  `sounds` in Herdr's settings (your own files, or off). While the window is
-  hidden nothing runs to notice, so there's no alert; the tab's dot still
-  shows it when you reopen.
+  `sounds` in Herdr's settings (your own files, or off). **Click the toast to
+  open that agent's tab**, even if you have since hidden Float Space. An
+  expired or closed terminal is reported without starting a replacement.
+  Agents are monitored only while the window is open; changes while hidden
+  don't create alerts. The tab's dot still shows its status when you reopen.
 - While the keyboard is in Float Space (its terminal, Notes or header), its
   border turns your theme's accent color; clicking outside turns it back.
   Herdr keeps drawing the pane underneath as focused too; Float's border is
@@ -62,7 +71,7 @@ python3 scripts/install.py --dry-run
 python3 scripts/install.py
 ```
 
-It copies the mod into `~/.config/herdr-app/mods/`, adds the shortcut
+It copies the mod into `~/.config/herdr-app/mods/`, adds the shortcuts
 without replacing any binding you already use, and backs up `keys.json`
 under `~/.config/herdr-app/backups/float-space/`. It never touches a layout.
 `--update` installs a newer checkout over a previous install and refuses to
@@ -131,7 +140,8 @@ app. See [CONTRIBUTING.md](CONTRIBUTING.md) before sending a change.
 
 ## Remove
 
-Hide Float Space, remove its `ctrl-shift-space` bindings from `keys.json`
+Hide Float Space, remove its `ctrl-shift-space` bindings and the
+`mod:float-space` section from `keys.json`
 (and the button block, if you added one), then delete
 `~/.config/herdr-app/mods/float-space`. Notes and shells stay. To end the
 shells too, close their tabs first, or list them with

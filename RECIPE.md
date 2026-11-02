@@ -60,18 +60,26 @@ their programs still running, returning the keyboard to the pane underneath.
   in the `blocked` or `done` color; idle shows nothing.
 - **Alerts** (Herdr alerts only for agents in its spaces): while the window
   is open, the header checks its agents once a second. Working → idle or done
-  posts `notify` "<name> finished", body "In Float Space", level success;
+  posts `notify` "<name> finished", body "In Float Space · Click to open", level success;
   becoming blocked "<name> needs you" (warning), error "<name> stopped with
   an error" (error). Then `playSound("done")`, or `"blocked"` when any needs
   the person, unless `settings().sounds.enabled` is false. Nothing for the
   agent being watched: `window().active`, the keyboard in the window and that
   tab shown. Statuses live in the window's shared memory so one header copy
   reports each change; after a gap of over 3 s (hidden, reloaded) the first
-  check only takes note.
+  check only takes note. Clicking a toast opens its own terminal tab, even
+  after hiding the window. Core must still confirm that terminal's ownership;
+  a stale toast reports that it is gone and never starts another shell.
 - **Ctrl+Shift+Space** shows or hides the window from anywhere, also while a
   terminal or the window has the keyboard. The optional button does the
   same. Changing spaces or tabs keeps it open; switching layouts closes it,
   and the shortcut opens it again there. Clicks beside it don't close it.
+- **Header/Notes shortcuts**: Ctrl+Tab goes to the next page,
+  Ctrl+Shift+Tab to the previous, wrapping through Notes and the terminals
+  in header order. Ctrl+Shift+T adds a shell; Ctrl+Shift+N opens Notes.
+  Bind these only under `mod:float-space`. Embedded terminals have Herdr's
+  `Terminal` key context, not the mod's, so their existing bindings remain.
+  Click the header before using Float Space's shortcuts from a terminal.
 - The first opening starts a shell in the live folder of the terminal the
   open space is showing (where a new Herdr tab starts; the space's stored
   folder only if that terminal has none). Later openings show the tab that
@@ -94,8 +102,9 @@ their programs still running, returning the keyboard to the pane underneath.
   leaves: a click anywhere outside the window, or Herdr focusing another
   pane. A press on the header (a tab, a button or free space) puts the
   keyboard in the header. Escape is left to the terminal programs.
-- **Notes** save on their own 400 ms after typing pauses, and when Notes
-  closes (another tab, hiding). They are the same in every space.
+- **Notes** take keyboard focus when opened and save 400 ms after typing
+  pauses, and when Notes closes (another tab, hiding). They are the same in
+  every space.
 - **Window size**: a preset applies at once and closes the popup. The
   sliders show their value while dragging but change nothing until Apply;
   Reset puts 50 × 60 in the sliders; Escape or a click outside cancels.
@@ -117,12 +126,22 @@ their programs still running, returning the keyboard to the pane underneath.
 - **mod.json**: `{"place": "none", "title": "Float Space", "overlay":
   {"kind": "window", "frame": "none", "width": 1, "height": 1}}`. No layout.
 - **keys.json**: `ctrl-shift-space` → `mod.open:float-space` in `global`,
-  `terminal` and `mod:float-space`.
+  `terminal` and `mod:float-space`. In `mod:float-space` only:
+  `ctrl-tab` → `float-space.next`, `ctrl-shift-tab` → `float-space.prev`,
+  `ctrl-shift-t` → `float-space.new`, `ctrl-shift-n` → `float-space.notes`.
 - **Copies by role** (`props().role`):
   - none with an `overlay` id (from `mod.open`), or `"run"` with a `command`:
     an invisible 1×1 window that runs one command (default `toggle`) and
     closes itself.
   - `"bar"` with a `generation`: the header.
+  - `"alert"` with an `address`, `title`, `level`: an invisible 2px window
+    at the top left that posts a native toast and listens for its unique
+    `float-space.alert-<overlay id>` action through `nextCommand()`. It
+    handles the reveal itself under the command lease, then closes. It
+    expires 250 ms after the toast (5 s for success, 8 s for warning/error), unless a click has
+    started the reveal and it is still waiting for core; closing it also
+    dismisses the toast. This keeps an existing toast usable after hiding
+    Float Space without monitoring agents while hidden.
   - `"edge"` with a `side` (`left`, `right`, `bottom`): the border beside and
     under the body.
   - `"notes"`: Notes. `"size"`: the size popup.
@@ -136,16 +155,24 @@ their programs still running, returning the keyboard to the pane underneath.
   the side edges fill with the border color, the bottom band draws
   `border_b`, `border_l`, `border_r` and `rounded_b(10)`.
 - **Commands** run by the controller: `toggle`, `show`, `hide`, `new`,
-  `notes`, `select-<address>`, `end-<address>`, `resize-<W>-<H>`,
+  `notes`, `next`, `prev`, `reveal-<address>`, `select-<address>`, `end-<address>`, `resize-<W>-<H>`,
   `reconcile`. The header, the popup and the button start them with
   `openOverlay({mod: "float-space", kind: "window", frame: "none", width: 1,
   height: 1, props: {role: "run", command}})`.
+  Only the current header generation handles the four navigation commands
+  from `nextCommand()`, and only while it or Notes has keyboard focus with
+  no size popup. A remount must not leave an older header handling them too.
+- **Reconciliation**: every 3 s while open, compare owned live addresses with
+  saved tabs. Remember a mismatching snapshot only after core confirms it
+  successfully. Failed queries retry at the next check; successful queries
+  against an unchanged lagging snapshot do not repeat. Clear that memory
+  when the snapshot and saved tabs match again.
 - **One controller** for all copies, in `globalThis.__herdr_float_space_window_v1`
   with a lease so commands run one at a time; its prototype is reset to the
   running build's class on every use.
 - **herdr**: `appHome`, `home`, `hc`, `focused`, `panes`, `terminals`,
   `shared`, `setShared`, `settings`, `props`, `theme`, `run("pane.focus")`,
-  `openOverlay`, `closeOverlay`, `notify`. **gpui**: `View`, `div`, `svg`,
+  `openOverlay`, `closeOverlay`, `notify`, `nextCommand`. **gpui**: `View`, `div`, `svg`,
   `image`, `h_flex`, `v_flex`, `TextareaState`, `Textarea`, `SliderState`,
   `Slider`, `SliderTrack`, `SliderIndicator`, `SliderThumb`.
 - **Programs**: `hc run --bg --keep --no-parent --cwd <focused terminal, else space folder, else home> --json`,
@@ -157,9 +184,10 @@ their programs still running, returning the keyboard to the pane underneath.
 
 ## Watch out
 
-- `<mod>.<command>` reaches shown copies only, which would need a block in
-  the person's layout. `mod.open` needs none; it starts a new copy on every
-  call. `globalThis` is shared by all copies of the mod.
+- `<mod>.<command>` reaches shown copies only: the current header handles
+  keyboard commands, and each toast has its own short-lived receiver.
+  `mod.open` starts a new copy without a layout block. `globalThis` is
+  shared by all copies of the mod.
 - Herdr stops a copy's tasks when it closes or reloads. A command has to run
   in a copy that outlives it: not in the header (every remount closes it)
   and not in the popup. A promise queue shared by copies stalls for good once
