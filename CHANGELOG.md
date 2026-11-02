@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 — 2026-11-02
 
 - Failed terminal-list synchronization retries on the next check, even when
   the live snapshot hasn't changed.

@@ -95,7 +95,7 @@ def main():
         for filename in FILES:
             shutil.copy2(source / filename, stage / filename)
         atomic_json(stage / MARKER, {
-            "package": "herdr-float-space", "version": "0.1.0",
+            "package": "herdr-float-space", "version": "0.2.0",
             "files": {filename: digest(source / filename) for filename in FILES},
         })
         if destination.exists():

@@ -1,6 +1,6 @@
 {
   "name": "herdr-float-space",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A floating scratch window for the Herdr desktop app: terminal tabs and shared notes",
   "license": "MIT",
   "repository": {
