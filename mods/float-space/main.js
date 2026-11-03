@@ -337,7 +337,7 @@ export default class FloatSpace extends View {
     const t = theme();
     // Continues the status bar beside it: chrome, its top border, a rounded button.
     return h_flex().size_full().items_center().justify_center().bg(t.chrome).border_t(1).border_color(t.border)
-      .child(h_flex().id("float-space-launcher").size(22).items_center().justify_center().rounded(6).text_color(t.muted)
+      .child(h_flex().id("float-space-launcher").w(26).h(22).items_center().justify_center().rounded(6).text_color(t.muted)
         .cursor_pointer().hover(s => s.bg(t.hover).text_color(t.foreground))
         .tooltip("Float Space · Ctrl+Shift+Space")
         .accessibility_label("Toggle Float Space (Ctrl+Shift+Space)")

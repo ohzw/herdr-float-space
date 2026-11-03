@@ -49,9 +49,9 @@ their programs still running, returning the keyboard to the pane underneath.
   - Reset (raised, `input` outline) and Apply (solid primary), 26px tall with
     12px side padding, at either end of the last row.
 - **Optional button**, for a personal layout's status bar: a 32px block on
-  `chrome` with the status bar's top border, holding a 22px rounded button
-  with the 14px float icon in `muted`, tooltip "Float Space ·
-  Ctrl+Shift+Space".
+  `chrome` with the status bar's top border, holding a 26×22 rounded button
+  (as wide as the status bar's other 26px buttons) with the 14px float icon
+  in `muted`, tooltip "Float Space · Ctrl+Shift+Space".
 
 ## How it behaves
 
