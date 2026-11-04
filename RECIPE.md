@@ -52,7 +52,9 @@ their programs still running, returning the keyboard to the pane underneath.
   `chrome` with the status bar's top border, holding a 26×22 rounded button
   (as wide as the status bar's other 26px buttons) with the 14px float icon
   (two stacked windows: the back one's outline stops short of the front one)
-  in `muted`, tooltip "Float Space · Ctrl+Shift+Space".
+  in `muted`. Resting the pointer on it for 1000 ms shows the label
+  "Float Space · Ctrl+Shift+Space": a `HoverCard` with `open_delay(1000)`,
+  since `.tooltip()` always shows after 500 ms.
 
 ## How it behaves
 

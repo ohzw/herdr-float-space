@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- The status-bar button's label waits 1000 ms before showing (a `HoverCard`
+  instead of the 500 ms tooltip), matching a status bar whose other buttons
+  wait that long.
+
 ## 0.2.0 — 2026-11-02
 
 - Failed terminal-list synchronization retries on the next check, even when

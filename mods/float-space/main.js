@@ -1,5 +1,5 @@
 import { View, div, svg, image } from "gpui-kit";
-import { h_flex, v_flex, TextareaState, Textarea, SliderState, Slider, SliderTrack, SliderIndicator, SliderThumb } from "gpui-base";
+import { HoverCard, h_flex, v_flex, TextareaState, Textarea, SliderState, Slider, SliderTrack, SliderIndicator, SliderThumb } from "gpui-base";
 import { appHome, home, hc, focused, spaces, panes, terminals, shared, setShared, settings, props, theme, run, openOverlay, closeOverlay, notify, playSound, nextCommand, window as app } from "herdr";
 import { STATE_KEY, DEFAULT_SIZE, PRESETS, readState, ownedTerminals, tabName, pressedInWindow, agentAlerts, startFolder } from "./model.js";
 import { FloatController } from "./controller.js";
@@ -336,13 +336,15 @@ export default class FloatSpace extends View {
   renderLauncher() {
     const t = theme();
     // Continues the status bar beside it: chrome, its top border, a rounded button.
+    const button = h_flex().id("float-space-launcher").w(26).h(22).items_center().justify_center().rounded(6).text_color(t.muted)
+      .cursor_pointer().hover(s => s.bg(t.hover).text_color(t.foreground))
+      .accessibility_label("Toggle Float Space (Ctrl+Shift+Space)")
+      .on_mouse_down("left", stop).on_click(() => act("toggle"))
+      .child(svg("mods/float-space/float.svg").size(14));
+    // The label waits 1000 ms like the status bar's other buttons; .tooltip() is fixed at 500.
     return h_flex().size_full().items_center().justify_center().bg(t.chrome).border_t(1).border_color(t.border)
-      .child(h_flex().id("float-space-launcher").w(26).h(22).items_center().justify_center().rounded(6).text_color(t.muted)
-        .cursor_pointer().hover(s => s.bg(t.hover).text_color(t.foreground))
-        .tooltip("Float Space · Ctrl+Shift+Space")
-        .accessibility_label("Toggle Float Space (Ctrl+Shift+Space)")
-        .on_mouse_down("left", stop).on_click(() => act("toggle"))
-        .child(svg("mods/float-space/float.svg").size(14)));
+      .child(HoverCard.new("float-space-launcher-hover").anchor("bottom_center").open_delay(1000).trigger(button)
+        .content(div().text_size(12).text_color(t.foreground).child("Float Space · Ctrl+Shift+Space")));
   }
 
   renderBar() {
