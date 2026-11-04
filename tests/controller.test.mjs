@@ -497,8 +497,19 @@ test("closes from a replaced or hidden window are not taken for Herdr's", async 
   data.log = [];
   host.close = () => { data.log.push("close"); controller.windowClosed(host, controller.generation); };
   controller.hide(host);
-  assert.deepEqual(data.log, ["focus", "close"]);
+  assert.deepEqual(data.log, ["close", "focus"]);
   assert.equal(controller.overlay, null);
+});
+
+test("hiding closes the overlay window before refocusing the previous pane", async () => {
+  const { controller, host, data } = fixture();
+  await controller.handle("show", host);
+  data.log = [];
+  const origClose = host.close;
+  host.close = id => { data.log.push("close"); origClose(id); };
+  controller.hide(host);
+  assert.deepEqual(data.log, ["close", "focus"]);
+  assert.equal(data.returned, "pane1");
 });
 
 test("an empty snapshot while the window is open still hides it on toggle", async () => {

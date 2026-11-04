@@ -97,14 +97,13 @@ their programs still running, returning the keyboard to the pane underneath.
   shell.
 - **Hide** (− or the shortcut) never ends a terminal; the pane that had the
   keyboard before gets it back.
-- **Focus.** Opening focuses the header, so typing doesn't reach the agent
-  underneath; click the terminal to type in it. Herdr keeps drawing the pane
-  underneath as focused while the header or Notes has the keyboard, so the
-  window marks it: its whole border turns `accent` while typing goes into the
-  window (header, Notes or its terminal) and goes back to `input` when it
-  leaves: a click anywhere outside the window, or Herdr focusing another
-  pane. A press on the header (a tab, a button or free space) puts the
-  keyboard in the header. Escape is left to the terminal programs.
+- **Focus.** Notes immediately takes keyboard focus when opened or switched to.
+  In Herdr 0.1.12, overlay terminals do not take keyboard focus on open and
+  require a click to focus. The window marks keyboard focus: its whole border
+  turns `accent` when typing goes into the window (Notes, header, or after
+  clicking into an embedded terminal) and stays `input` otherwise. Hiding the
+  window restores focus to the pane that held it before opening. Escape is left
+  to the terminal programs.
 - **Notes** take keyboard focus when opened and save 400 ms after typing
   pauses, and when Notes closes (another tab, hiding). They are the same in
   every space.

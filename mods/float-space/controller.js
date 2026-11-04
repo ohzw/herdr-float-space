@@ -145,8 +145,8 @@ export class FloatController {
     // Forget the window first: closing it closes the header, which must not
     // take this for Herdr's close. Focus the pane while the caller still lives.
     this.overlay = this.mounted = null;
-    if (restore && pane) host.focusPane(pane);
     host.close(overlay);
+    if (restore && pane) host.focusPane(pane);
   }
 
   async handle(command, host) {

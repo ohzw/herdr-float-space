@@ -143,7 +143,7 @@ function watchAgents() {
 
 // A press on the header's own controls puts the keyboard in the window too.
 function grab(view) {
-  return (_event, cx) => { cx.stop_propagation(); view.handle?.focus(); showFocus(true); };
+  return (_event, cx) => { cx.stop_propagation(); view.headerClicked = true; view.handle?.focus(); showFocus(true); };
 }
 function focusKey() {
   const now = focused();
@@ -208,14 +208,17 @@ export default class FloatSpace extends View {
         this.pendingSave?.cancel();
         this.pendingSave = cx.timer.after(400, () => this.saveNotes());
       });
-      this.notes.on("focus", () => { windowShared().notesFocused = true; });
+      this.notes.on("focus", () => { windowShared().notesFocused = true; showFocus(true); });
       this.notes.on("blur", () => { windowShared().notesFocused = false; });
       cx.timer.after(0, () => this.notes.focus());
     } else if (this.role === "bar") {
       this.handle = cx.focus_handle();
-      // Herdr 0.1.10's pane.focus only addresses main-layout terminals.
-      // Focus our chrome instead of leaving typing in the agent underneath.
-      cx.timer.after(0, () => { this.handle.focus(); showFocus(true); });
+      this.headerClicked = false;
+      const state = readState(shared(STATE_KEY));
+      // Safety guard: hold keyboard in Float Space to prevent keystrokes
+      // from leaking to the background pane. Do NOT mark border accent;
+      // border stays neutral until the user clicks into the terminal.
+      if (state.page !== "notes") cx.timer.after(0, () => this.handle.focus());
       drawsBorder(cx);
       // A failed core query must remain eligible on the next tick.
       cx.timer.every(3000, () => {
@@ -233,7 +236,7 @@ export default class FloatSpace extends View {
           const command = await nextCommand();
           if (!["next", "prev", "new", "notes"].includes(command)) continue;
           if (this.copyProps.generation !== windowShared().controller.generation) continue;
-          if (globalThis[SIZE_POPUP]?.overlay || !this.keyboard()) continue;
+          if (globalThis[SIZE_POPUP]?.overlay || !this.canNavigate()) continue;
           act(command);
         }
       });
@@ -242,13 +245,18 @@ export default class FloatSpace extends View {
     }
   }
 
+  canNavigate() {
+    return this.handle?.is_focused() || this.keyboard();
+  }
+
   // Whether typing goes into this window: its header, Notes or its terminal.
   // Herdr keeps the pane underneath marked focused in all three cases, and
   // `focused()` doesn't report a terminal in an overlay, so a press inside the
   // window counts until a press elsewhere or Herdr focusing another pane.
   keyboard() {
-    if (this.handle?.is_focused() || windowShared().notesFocused) return true;
+    if (windowShared().notesFocused) return true;
     if (this.pressedIn && this.pressedIn === focusKey()) return true;
+    if (this.headerClicked && this.handle?.is_focused()) return true;
     const now = focused();
     return !now?.pane && readState(shared(STATE_KEY)).tabs.some(tab => tab.address === now?.terminal);
   }
@@ -259,6 +267,7 @@ export default class FloatSpace extends View {
     const height = readState(shared(STATE_KEY)).size.height * window.viewport_size().height;
     const inside = pressedInWindow(event.position, event.bounds, height);
     this.pressedIn = inside ? focusKey() : null;
+    this.headerClicked = false;
     showFocus(inside);
   }
 
@@ -271,7 +280,10 @@ export default class FloatSpace extends View {
 
   async close() {
     if (this.toast) closeOverlay(this.toast);
-    if (this.role === "notes") windowShared().notesFocused = false;
+    if (this.role === "notes") {
+      windowShared().notesFocused = false;
+      showFocus(false);
+    }
     if (this.role === "size" && globalThis[SIZE_POPUP]?.overlay === this.copyProps.overlay) globalThis[SIZE_POPUP] = { closedAt: Date.now() };
     if (this.pendingSave) {
       this.pendingSave.cancel();
@@ -282,7 +294,10 @@ export default class FloatSpace extends View {
     // Last: it may wait for core. Work started from here is cancelled with
     // this copy, so it must not hand over to another copy.
     if (this.role === "bar") {
-      if (this.copyProps.generation === windowShared().controller.generation) windowShared().keyboard = false;
+      if (this.copyProps.generation === windowShared().controller.generation) {
+        windowShared().keyboard = false;
+        showFocus(false);
+      }
       try { await windowShared().controller.windowClosed(host(), this.copyProps.generation); }
       catch (error) { notify({ title: "Float Space", body: String(error?.message ?? error), level: "error" }); }
     }
@@ -302,7 +317,7 @@ export default class FloatSpace extends View {
     return h_flex().id(id).size(22).items_center().justify_center().flex_none().rounded(6).text_color(t.dim)
       .cursor_pointer().hover(s => s.bg(t.hover).text_color(t.foreground))
       .tooltip(label).accessibility_label(label)
-      .on_mouse_down("left", (event, cx) => { cx.stop_propagation(); this.handle?.focus(); showFocus(true); this.pointer = event.position; press?.(); }).on_click(action)
+      .on_mouse_down("left", (event, cx) => { cx.stop_propagation(); this.headerClicked = true; this.handle?.focus(); showFocus(true); this.pointer = event.position; press?.(); }).on_click(action)
       .child(svg(`mods/float-space/${icon}.svg`).size(14));
   }
 
@@ -379,7 +394,7 @@ export default class FloatSpace extends View {
     // terminal tabs follow. Free strip space drags the window. The outer edge is
     // the top of the window's border; the line under the tabs stays neutral.
     return v_flex().id("float-space-bar").track_focus(this.handle).on_mouse_down_out(event => this.notePress(event))
-      .on_mouse_down("left", () => { this.handle.focus(); showFocus(true); })
+      .on_mouse_down("left", () => { this.headerClicked = true; this.handle.focus(); showFocus(true); })
       .size_full().bg(t.background).border_t(1).border_l(1).border_r(1).rounded_t(10).border_color(ring)
       .child(h_flex().flex_1().min_h(0).px(6).gap(6).items_center().border_b(1).border_color(t.border)
       .text_color(t.foreground).text_size(12)

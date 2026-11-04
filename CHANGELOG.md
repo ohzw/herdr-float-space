@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Focus: Notes reliably takes keyboard focus on open and tab selection without
+  racing header chrome focus.
+- Hiding Float Space cleanly restores keyboard focus to the previously active
+  pane by unmounting the overlay window before requesting pane focus.
 - The status-bar button's label waits 1000 ms before showing (a `HoverCard`
   instead of the 500 ms tooltip), matching a status bar whose other buttons
   wait that long.
