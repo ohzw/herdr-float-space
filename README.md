@@ -23,16 +23,20 @@ again and you're back where you were. Your layout stays as it is.
   Shells are numbered like Herdr's tabs: the lowest number no open tab uses.
 - Switch tabs inside the window without touching the space behind it. Agents
   show their own name and icon, with Herdr's working spinner and
-  blocked/done dots.
-- While the window is open, an agent in it that finishes or needs you posts
-  a toast ("Codex finished · In Float Space") and plays Herdr's done or
-  blocked sound, unless you're watching it: Herdr is the active app, the
-  keyboard is in Float Space and that tab is shown. The sounds follow
-  `sounds` in Herdr's settings (your own files, or off). **Click the toast to
-  open that agent's tab**, even if you have since hidden Float Space. An
-  expired or closed terminal is reported without starting a replacement.
-  Agents are monitored only while the window is open; changes while hidden
-  don't create alerts. The tab's dot still shows its status when you reopen.
+  blocked/done dots. As in Herdr, the done dot goes away once you've seen
+  that tab, even if the agent keeps reporting done.
+- An agent in Float Space that finishes or needs you gets Herdr's own agent
+  toast ("Codex finished", "Codex needs you") and sound, unless you're
+  watching it: Herdr is the active app, the keyboard is in Float Space and
+  that tab is shown. The sounds follow `sounds` in Herdr's settings (your
+  own files, or off). **Click the toast to open that agent's tab**, even if
+  you have since hidden Float Space. An expired or closed terminal is
+  reported without starting a replacement. With the optional status-bar
+  button in your layout, this also works while Float Space is hidden;
+  without it, agents are watched only while the window is open.
+- The status-bar button shows a dot in Herdr's yellow (its working color)
+  when an agent finished and you haven't seen it yet. It goes away once that
+  tab shows in the open window while Herdr is the active app.
 - While the keyboard is in Float Space (its terminal, Notes or header), its
   border turns your theme's accent color; clicking outside turns it back.
   Herdr keeps drawing the pane underneath as focused too; Float's border is
@@ -82,7 +86,9 @@ No restart is needed.
 the bindings from `keys.json` to yours.
 
 **Optional status-bar button**, if you keep a personal layout (a clone made
-with "Duplicate layout"): put this block beside its `status` block.
+with "Duplicate layout"): put this block beside its `status` block. Besides
+toggling the window, it shows a dot for a finished agent you haven't seen
+and keeps the toasts and sounds coming while Float Space is hidden.
 
 ```json
 {

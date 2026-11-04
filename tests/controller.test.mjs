@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { FloatController } from "../mods/float-space/controller.js";
-import { readState, reconcile, returnPane, ownedTerminals, tabName, pressedInWindow, DEFAULT_SIZE, PRESETS, windowSpec, nextTitle, agentAlerts, startFolder } from "../mods/float-space/model.js";
+import { readState, reconcile, returnPane, ownedTerminals, tabName, pressedInWindow, DEFAULT_SIZE, PRESETS, windowSpec, nextTitle, agentAlerts, unseenFinishes, tabStatus, startFolder } from "../mods/float-space/model.js";
 
 // The block a window shows under its header: a terminal or Notes.
 function body(spec) {
@@ -585,9 +585,43 @@ test("agent alerts: finishing, needing the person, never the one being watched",
   const next = agentAlerts(first.statuses, [{ address: "t1", status: "idle" }, { address: "t2", status: "blocked" }, { address: "t3", status: "done" }], null);
   assert.deepEqual(next.alerts, [{ address: "t1", kind: "done" }, { address: "t2", kind: "blocked" }]);
   const watched = agentAlerts(first.statuses, [{ address: "t1", status: "done" }, { address: "t2", status: "error" }], "t1");
-  assert.deepEqual(watched.alerts, [{ address: "t2", kind: "error" }]);
+  assert.deepEqual(watched.alerts, [{ address: "t2", kind: "blocked" }], "an error needs the person, as in Herdr");
+  const again = agentAlerts({ t1: "blocked", t2: "error" }, [{ address: "t1", status: "error" }, { address: "t2", status: "blocked" }], null);
+  assert.deepEqual(again.alerts, [], "blocked ↔ error is one need, alerted once");
   const quiet = agentAlerts({ t1: "idle", t2: null }, [{ address: "t1", status: "done" }, { address: "t2", status: "idle" }], null);
   assert.deepEqual(quiet.alerts, [], "only working → idle/done counts as finishing");
+});
+
+test("button dot: one state, a finish not yet seen, until its tab shows", () => {
+  const idle = [{ address: "t1", status: "idle" }, { address: "t2", status: null }];
+  assert.deepEqual(unseenFinishes([], [], idle, null), { unseen: [], dot: false }, "idle agents and shells: no dot");
+  const busy = [{ address: "t1", status: "working" }, { address: "t2", status: "blocked" }, { address: "t3", status: "error" }];
+  assert.deepEqual(unseenFinishes([], [{ address: "t2", kind: "blocked" }], busy, null), { unseen: [], dot: false },
+    "working, needing you and errors don't light it");
+  const done = [{ address: "t1", kind: "done" }];
+  const finished = unseenFinishes([], done, [{ address: "t1", status: "idle" }, { address: "t2", status: "working" }], null);
+  assert.deepEqual(finished, { unseen: ["t1"], dot: true });
+  assert.deepEqual(unseenFinishes(finished.unseen, [], [{ address: "t1", status: "idle" }], null), { unseen: ["t1"], dot: true },
+    "the finish stays while hidden");
+  assert.deepEqual(unseenFinishes(finished.unseen, [], [{ address: "t1", status: "idle" }], "t1"), { unseen: [], dot: false },
+    "showing its tab marks it seen");
+  assert.deepEqual(unseenFinishes([], done, [{ address: "t1", status: "idle" }], "t1"), { unseen: [], dot: false },
+    "a finish while its tab shows is seen at once");
+  assert.deepEqual(unseenFinishes(["t1"], [], [{ address: "t1", status: "working" }], null), { unseen: [], dot: false },
+    "working again clears it");
+  assert.deepEqual(unseenFinishes(["t1"], [], [{ address: "t1", status: "blocked" }], null), { unseen: [], dot: false },
+    "needing you again clears it, as in Herdr");
+  assert.deepEqual(unseenFinishes(["t1"], [], [], null), { unseen: ["t1"], dot: false },
+    "a lagging snapshot keeps the finish without lighting the dot");
+});
+
+test("tab status: the done dot only until the tab has been seen, like Herdr's tabs", () => {
+  assert.equal(tabStatus("working", false), "working");
+  assert.equal(tabStatus("blocked", false), "blocked");
+  assert.equal(tabStatus("done", true), "done", "a finish not yet seen");
+  assert.equal(tabStatus("done", false), null, "seen: an agent still reporting done shows nothing");
+  assert.equal(tabStatus("idle", true), null, "idle agents keep showing nothing");
+  assert.equal(tabStatus(null, false), null);
 });
 
 test("a failed reconciliation retries the same snapshot and preserves notes", async () => {

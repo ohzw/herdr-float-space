@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- The status-bar button shows a dot in Herdr's yellow when an agent finished
+  and you haven't seen it yet. It stays until that tab shows in the open
+  window.
+- With the status-bar button in your layout, agent toasts and sounds also
+  come while Float Space is hidden.
+- Agent toasts are Herdr's own: "Codex finished" or "Codex needs you" (an
+  error too), with Herdr's levels and timing, no extra text.
+- A tab's done dot goes away once you've seen that tab, as in Herdr; before,
+  it stayed for as long as the agent reported done.
 - Focus: Notes reliably takes keyboard focus on open and tab selection without
   racing header chrome focus.
 - Hiding Float Space cleanly restores keyboard focus to the previously active

@@ -54,25 +54,41 @@ their programs still running, returning the keyboard to the pane underneath.
   (two stacked windows: the back one's outline stops short of the front one)
   in `muted`. Resting the pointer on it for 1000 ms shows the label
   "Float Space · Ctrl+Shift+Space": a `HoverCard` with `open_delay(1000)`,
-  since `.tooltip()` always shows after 500 ms.
+  since `.tooltip()` always shows after 500 ms. When an agent finished and
+  hasn't been seen, an 8px round dot in `working` (Herdr's yellow) with a
+  1px `chrome` ring sits at the icon's top right (3px above it, 4px past its
+  right edge, where the front window leaves room); no dot otherwise.
 
 ## How it behaves
 
 - **Agent statuses** on terminal tabs: working shows a 12px spinner in the
-  `working` color turning once every 900 ms; blocked and done show a 6px dot
-  in the `blocked` or `done` color; idle shows nothing.
-- **Alerts** (Herdr alerts only for agents in its spaces): while the window
-  is open, the header checks its agents once a second. Working → idle or done
-  posts `notify` "<name> finished", body "In Float Space · Click to open", level success;
-  becoming blocked "<name> needs you" (warning), error "<name> stopped with
-  an error" (error). Then `playSound("done")`, or `"blocked"` when any needs
-  the person, unless `settings().sounds.enabled` is false. Nothing for the
-  agent being watched: `window().active`, the keyboard in the window and that
-  tab shown. Statuses live in the window's shared memory so one header copy
-  reports each change; after a gap of over 3 s (hidden, reloaded) the first
-  check only takes note. Clicking a toast opens its own terminal tab, even
-  after hiding the window. Core must still confirm that terminal's ownership;
-  a stale toast reports that it is gone and never starts another shell.
+  `working` color turning once every 900 ms; blocked shows a 6px dot in the
+  `blocked` color; done a 6px dot in the `done` color, only while that
+  finish is unseen (below), since an agent may keep reporting done after
+  you've looked; idle shows nothing.
+- **Alerts** (Herdr alerts only for agents in its spaces): the header while
+  the window is open, and the optional button always (it stays in its
+  layout while the window is hidden), check the agents once a second.
+  Working → idle or done posts Herdr's agent toast: `notify` "<name>
+  finished", level info; becoming blocked or hitting an error (one need, so
+  blocked ↔ error doesn't alert again) "<name> needs you", level error. No
+  body (a Float Space terminal has no space or tab) and no timeout, so the
+  toast mod's defaults apply (5 s info, 8 s error). Then `playSound("done")`,
+  or `"blocked"` when any needs the person, unless
+  `settings().sounds.enabled` is false. Nothing for the agent being watched:
+  the window open, `window().active`, the keyboard in the window and that
+  tab shown. A terminal not adopted as a tab yet is named after its
+  program. Statuses live in the window's shared memory so one copy reports
+  each change; after a gap of over 3 s (hidden with no button, reloaded) the
+  first check only takes note. Clicking a toast opens its own terminal tab,
+  even after hiding the window. Core must still confirm that terminal's
+  ownership; a stale toast reports that it is gone and never starts another
+  shell.
+- **Unseen finishes** light the button's dot and keep a tab's done dot: a
+  "finished" alert leaves its terminal unseen until its tab shows in the
+  open window while `window().active`, as Herdr keeps a tab "done" until you
+  look at it; working, blocked or error again clears it. Working and needing
+  the person never light the button.
 - **Ctrl+Shift+Space** shows or hides the window from anywhere, also while a
   terminal or the window has the keyboard. The optional button does the
   same. Changing spaces or tabs keeps it open; switching layouts closes it,
@@ -140,14 +156,15 @@ their programs still running, returning the keyboard to the pane underneath.
     at the top left that posts a native toast and listens for its unique
     `float-space.alert-<overlay id>` action through `nextCommand()`. It
     handles the reveal itself under the command lease, then closes. It
-    expires 250 ms after the toast (5 s for success, 8 s for warning/error), unless a click has
+    expires 250 ms after the toast (the toast mod's 5 s for info, 8 s for error), unless a click has
     started the reveal and it is still waiting for core; closing it also
     dismisses the toast. This keeps an existing toast usable after hiding
-    Float Space without monitoring agents while hidden.
+    Float Space.
   - `"edge"` with a `side` (`left`, `right`, `bottom`): the border beside and
     under the body.
   - `"notes"`: Notes. `"size"`: the size popup.
-  - none in a layout, or `"launcher"`: the optional button.
+  - none in a layout, or `"launcher"`: the optional button, which also runs
+    the agent check every second.
 - **The window**: `openOverlay({kind: "window", key:
   "float-space.window.<W>x<H>", frame: "none", width, height, layout})`,
   W and H in percent; the layout is a column with `radius: 10` and no
@@ -173,8 +190,8 @@ their programs still running, returning the keyboard to the pane underneath.
   with a lease so commands run one at a time; its prototype is reset to the
   running build's class on every use.
 - **herdr**: `appHome`, `home`, `hc`, `focused`, `panes`, `terminals`,
-  `shared`, `setShared`, `settings`, `props`, `theme`, `run("pane.focus")`,
-  `openOverlay`, `closeOverlay`, `notify`, `nextCommand`. **gpui**: `View`, `div`, `svg`,
+  `shared`, `setShared`, `settings`, `props`, `theme`, `window`, `run("pane.focus")`,
+  `openOverlay`, `closeOverlay`, `notify`, `playSound`, `nextCommand`. **gpui**: `View`, `div`, `svg`,
   `image`, `h_flex`, `v_flex`, `TextareaState`, `Textarea`, `SliderState`,
   `Slider`, `SliderTrack`, `SliderIndicator`, `SliderThumb`.
 - **Programs**: `hc run --bg --keep --no-parent --cwd <focused terminal, else space folder, else home> --json`,
@@ -243,6 +260,12 @@ their programs still running, returning the keyboard to the pane underneath.
   bounds.
 - `setShared` redraws every mod in the app: save Notes after a pause, never
   write unchanged state, and keep the window's runtime state in memory.
+- The button's dot, the tabs' done dots and the unseen finishes live in that
+  memory, not in Herdr's live data, so Herdr doesn't redraw for them: after
+  each check the header and the button compare the memory's `marks`
+  (`<dot>|<unseen addresses>`) with what they last drew and call their own
+  `cx.notify()`. Only the button watches while the window is hidden; a
+  layout without it gets no alerts then.
 - `terminals()` can lag or come back empty: confirm with `hc ls` before
   treating a terminal as gone, and list owned terminals again right before
   `hc kill`. Never add `herdr.space` or `herdr.tab` labels, which would put
@@ -270,5 +293,9 @@ their programs still running, returning the keyboard to the pane underneath.
   sliders change nothing until Apply.
 - The border is `accent` all the way round after clicking the window's
   terminal, Notes or a header tab, and `input` after clicking a pane outside.
+- With the window hidden and the button in the layout, an agent probe shows
+  no dot while working or blocked, and a yellow dot with a "<name> finished"
+  toast after finishing; opening the window on that tab with Herdr active
+  clears it.
 - Rapid presses never start an extra shell, also right after the mod
   reloads; `herdr-app status` shows no errors.

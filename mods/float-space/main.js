@@ -1,7 +1,7 @@
 import { View, div, svg, image } from "gpui-kit";
 import { HoverCard, h_flex, v_flex, TextareaState, Textarea, SliderState, Slider, SliderTrack, SliderIndicator, SliderThumb } from "gpui-base";
 import { appHome, home, hc, focused, spaces, panes, terminals, shared, setShared, settings, props, theme, run, openOverlay, closeOverlay, notify, playSound, nextCommand, window as app } from "herdr";
-import { STATE_KEY, DEFAULT_SIZE, PRESETS, readState, ownedTerminals, tabName, pressedInWindow, agentAlerts, startFolder } from "./model.js";
+import { STATE_KEY, DEFAULT_SIZE, PRESETS, readState, ownedTerminals, tabName, pressedInWindow, agentAlerts, unseenFinishes, tabStatus, startFolder } from "./model.js";
 import { FloatController } from "./controller.js";
 
 const WINDOW = "__herdr_float_space_window_v1";
@@ -105,30 +105,36 @@ function drawsBorder(cx) {
   });
 }
 
-// Herdr alerts only for agents in its spaces, so the window tells about its
-// own while it's open: a toast and Herdr's sound when an agent finishes or
-// needs the person, unless they're watching it (Herdr's window active, the
-// keyboard in this window, that tab shown). Every header copy runs this; the
-// shared memory makes one of them report each change.
+// Herdr alerts only for agents in its spaces, so Float Space tells about its
+// own the way Herdr does: Herdr's sound, and Herdr's agent toast unless
+// they're watching it (Herdr's window active, the keyboard in this window,
+// that tab shown). The header checks while the window is open, the
+// status-bar button also while it's hidden; the shared memory makes one of
+// them report each change. The same check keeps the button's dot.
 const ALERTS = {
-  done: { says: "finished", level: "success", sound: "done" },
-  blocked: { says: "needs you", level: "warning", sound: "blocked" },
-  error: { says: "stopped with an error", level: "error", sound: "blocked" },
+  done: { says: "finished", level: "info" },
+  blocked: { says: "needs you", level: "error" },
 };
 function watchAgents() {
   const memory = windowShared();
   const state = readState(shared(STATE_KEY));
   const live = ownedTerminals(terminals(), appHome());
-  // After a gap (hidden, reloaded), what changed meanwhile is old news.
+  // After a gap (hidden with no button, reloaded), what changed meanwhile is old news.
   const seen = Date.now() - (memory.watchedAt ?? 0) < 3000 ? memory.statuses ?? null : null;
   memory.watchedAt = Date.now();
-  const looking = app().active && memory.keyboard && state.page === "terminal" ? state.active : null;
+  const showing = memory.controller.overlay && app().active && state.page === "terminal" ? state.active : null;
+  const looking = memory.keyboard ? showing : null;
   const { statuses, alerts } = agentAlerts(seen, live, looking);
   memory.statuses = statuses;
+  const { unseen, dot } = unseenFinishes(memory.unseen, alerts, live, showing);
+  memory.unseen = unseen;
+  memory.dot = dot;
+  memory.marks = `${dot}|${unseen.join(" ")}`;
   if (!alerts.length) return;
   for (const alert of alerts) {
     const tab = state.tabs.find(item => item.address === alert.address);
-    const name = tab ? tabName(tab, live.find(item => item.address === alert.address)) : "An agent";
+    // A terminal not yet adopted as a tab (the window hasn't opened since) still has its program's name.
+    const name = tabName(tab ?? { title: "An agent" }, live.find(item => item.address === alert.address));
     const { says, level } = ALERTS[alert.kind];
     // The receiver lives as long as its toast, even after the main window is
     // hidden. Commands reach shown mod copies only in Herdr 0.1.11.
@@ -139,6 +145,16 @@ function watchAgents() {
   if (settings().sounds?.enabled !== false) {
     playSound(alerts.some(alert => alert.kind !== "done") ? "blocked" : "done");
   }
+}
+
+// Checks the agents once a second. Unseen finishes live in memory, not in
+// Herdr's live data, so a view drawing them (the button's dot, the tabs'
+// done dots) redraws itself when the check changes them.
+function watchesAgents(view, cx) {
+  cx.timer.every(1000, cx => {
+    watchAgents();
+    if (windowShared().marks !== view.drawnMarks) cx.notify();
+  });
 }
 
 // A press on the header's own controls puts the keyboard in the window too.
@@ -175,9 +191,11 @@ export default class FloatSpace extends View {
     } else if (this.role === "alert") {
       const { overlay, address, title, level } = this.copyProps;
       const command = `alert-${overlay}`;
-      const timeout = level === "success" ? 5000 : 8000;
-      this.toast = notify({ title, body: "In Float Space · Click to open", level, timeout,
-        action: { name: `float-space.${command}` } });
+      // Herdr's agent toast: its title and level, no body (a Float Space
+      // terminal has no space or tab) and Herdr's own timeout, which this
+      // receiver only mirrors to know when to go.
+      const timeout = level === "error" || level === "warning" ? 8000 : 5000;
+      this.toast = notify({ title, level, action: { name: `float-space.${command}` } });
       cx.spawn(async cx => {
         for (;;) {
           if (await nextCommand() !== command) continue;
@@ -228,7 +246,7 @@ export default class FloatSpace extends View {
       // Presses update the border at once; this catches the rest, such as
       // Herdr focusing another pane from the keyboard.
       cx.timer.every(150, () => showFocus(this.keyboard()));
-      cx.timer.every(1000, () => watchAgents());
+      watchesAgents(this, cx);
       // Only the header consumes navigation commands. Other shown copies
       // receive the same message; executing here prevents duplicate shells.
       cx.spawn(async () => {
@@ -242,6 +260,10 @@ export default class FloatSpace extends View {
       });
     } else if (this.role === "edge") {
       drawsBorder(cx);
+    } else if (this.role === "launcher") {
+      // The button stays in its layout while the window is hidden, so it
+      // keeps the alerts and its dot going then.
+      watchesAgents(this, cx);
     }
   }
 
@@ -357,12 +379,22 @@ export default class FloatSpace extends View {
 
   renderLauncher() {
     const t = theme();
+    const memory = windowShared();
+    this.drawnMarks = memory.marks;
+    const dot = Boolean(memory.dot);
+    // A finish you haven't seen: a dot at the icon's top right, where its
+    // front window leaves room, in Herdr's yellow (its `working` color) and
+    // ringed in the bar's color like Herdr's tile dots.
+    const icon = div().relative().size(14).flex_none()
+      .child(svg("mods/float-space/float.svg").size(14))
+      .when(dot, el => el.child(div().absolute().top(-3).right(-4).size(8).rounded_full()
+        .border_1().border_color(t.chrome).bg(t.working)));
     // Continues the status bar beside it: chrome, its top border, a rounded button.
     const button = h_flex().id("float-space-launcher").w(26).h(22).items_center().justify_center().rounded(6).text_color(t.muted)
       .cursor_pointer().hover(s => s.bg(t.hover).text_color(t.foreground))
       .accessibility_label("Toggle Float Space (Ctrl+Shift+Space)")
       .on_mouse_down("left", stop).on_click(() => act("toggle"))
-      .child(svg("mods/float-space/float.svg").size(14));
+      .child(icon);
     // The label waits 1000 ms like the status bar's other buttons; .tooltip() is fixed at 500.
     return h_flex().size_full().items_center().justify_center().bg(t.chrome).border_t(1).border_color(t.border)
       .child(HoverCard.new("float-space-launcher-hover").anchor("bottom_center").open_delay(1000).trigger(button)
@@ -375,15 +407,17 @@ export default class FloatSpace extends View {
     const live = terminals();
     const notes = state.page === "notes";
     const ring = windowShared().keyboard ? t.accent : t.input;
+    this.drawnMarks = windowShared().marks;
+    const unseen = new Set(windowShared().unseen ?? []);
     const tabs = state.tabs.map(tab => {
       const terminal = live.find(item => item.address === tab.address);
       const name = tabName(tab, terminal);
-      const status = terminal?.status;
+      const status = tabStatus(terminal?.status, unseen.has(tab.address));
       const active = state.page === "terminal" && state.active === tab.address;
       return this.tab(`float-tab-${tab.address}`, programIcon(terminal?.program, t.muted), name, active,
         () => act(`select-${tab.address}`), [
           status === "working" ? svg("mods/float-space/spinner.svg").size(12).flex_none().text_color(t.working).spin(900)
-            : status === "blocked" || status === "done" ? div().size(6).flex_none().rounded(3).bg(t[status]) : null,
+            : status ? div().size(6).flex_none().rounded(3).bg(t[status]) : null,
           active ? div().id(`float-end-${tab.address}`).flex_none().text_color(t.dim).hover(s => s.text_color(t.foreground))
             .tooltip(`Close ${name}`).accessibility_label(`Close ${name}`)
             .on_mouse_down("left", grab(this)).on_click((_e, cx) => { cx.stop_propagation(); act(`end-${tab.address}`); })

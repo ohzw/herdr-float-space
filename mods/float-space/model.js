@@ -97,20 +97,45 @@ export function nextTitle(tabs) {
 
 // Agent changes worth telling the person about, given the statuses seen last
 // time (null: nothing seen yet, so this only takes note). Finishing is working
-// → idle or done; blocked and error need them. `lookingAt` is the terminal
+// → idle or done; becoming blocked or hitting an error needs them, one alert
+// as in Herdr, which says "needs you" for both. `lookingAt` is the terminal
 // they're watching, which never alerts.
 export function agentAlerts(previous, terminals, lookingAt) {
   const statuses = {};
   const alerts = [];
+  const needs = status => status === "blocked" || status === "error";
   for (const terminal of terminals) {
     const now = terminal.status ?? null;
     statuses[terminal.address] = now;
     const before = previous?.[terminal.address];
     if (before === undefined || before === now || terminal.address === lookingAt) continue;
-    if (now === "blocked" || now === "error") alerts.push({ address: terminal.address, kind: now });
+    if (needs(now) && !needs(before)) alerts.push({ address: terminal.address, kind: "blocked" });
     else if (before === "working" && (now === "idle" || now === "done")) alerts.push({ address: terminal.address, kind: "done" });
   }
   return { statuses, alerts };
+}
+
+// Finishes the person hasn't seen yet, for the status-bar button's dot. A
+// finish (a "done" alert) stays unseen until its tab shows in the open window,
+// as Herdr keeps a tab "done" until you look at it; working or needing the
+// person again clears it. A terminal a lagging snapshot doesn't list keeps its
+// finish but doesn't light the dot.
+export function unseenFinishes(unseen, alerts, terminals, showing) {
+  const live = new Map(terminals.map(terminal => [terminal.address, terminal.status ?? null]));
+  const busy = status => status === "working" || status === "blocked" || status === "error";
+  const finished = alerts.filter(alert => alert.kind === "done").map(alert => alert.address);
+  const pending = [...new Set([...(unseen ?? []), ...finished])]
+    .filter(address => address !== showing && !busy(live.get(address)));
+  return { unseen: pending, dot: pending.some(address => live.has(address)) };
+}
+
+// What a terminal tab shows beside its name: Herdr's spinner while working,
+// its blocked dot, and its done dot only for a finish not yet seen, since
+// Herdr keeps "done" until you look at it. An agent can keep reporting
+// "done" long after; the tab then shows nothing, as Herdr's tabs do.
+export function tabStatus(status, unseen) {
+  if (status === "working" || status === "blocked") return status;
+  return status === "done" && unseen ? "done" : null;
 }
 
 // Only accept terminals returned by the core's exact ownership-label query.

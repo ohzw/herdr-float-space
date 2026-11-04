@@ -7,7 +7,7 @@ day-to-day comfort is for the person using it to judge.
 
 ## Automated checks
 
-- `npm test`: 53 passing lifecycle and state tests (2026-11-02).
+- `npm test`: 56 passing lifecycle and state tests (2026-11-04).
 - `python3 -m unittest discover -s tests -p 'test_*.py'`: 4 passing installer tests.
 - `herdr-app check mods/float-space`: passes (0.1.10 and 0.1.11).
 - CI runs the first two on every push and pull request (Node 22 and 24,
@@ -114,6 +114,39 @@ the header and Notes. Herdr 0.1.11 gives embedded terminals the general
 `Terminal` key context; their existing terminal/workspace shortcuts remain.
 These checks do not establish shortcut support inside an embedded terminal,
 macOS/Windows compatibility, or sound playback.
+
+### Status-bar dot and alerts while hidden (2026-11-04)
+
+Tested in an isolated Xvfb display (no window manager), app home and core
+session, with sounds off (`HERDR_APP_NO_SOUND`). The layout was a clone of
+`main` with the button beside the status bar, as in the README. Probes
+reported OSC 7501 states (`app=codex`); no real agents or user terminals
+were used. Pointer clicks went to that display only. The dot was read from
+screenshots, and on 0.1.12 also from a temporary trace in the sandbox copy
+(removed with the sandbox).
+
+Current build, Herdr 0.1.13 and core 0.1.18:
+
+| Check | Result |
+| --- | --- |
+| Probe working, Float Space never opened | No dot |
+| Probe blocked while hidden | Herdr's toast "Codex needs you" (error dot, no body), no dot on the button |
+| Probe working → idle while hidden | Herdr's toast "Codex finished" (info dot, no body), yellow dot (`working`) at the icon's top right, not clipped, ringed in `chrome` |
+| Open Float Space on that tab, Herdr active | Dot gone within 1.5 s |
+| Two probes report working, then done, one on the shown tab, one on the other | Shown tab: no dot. Other tab: Herdr's blue done dot, button yellow |
+| Click that other tab, both probes still reporting done | No dot on either tab, none on the button |
+
+An earlier design of the same watcher (a dot for every status, Herdr 0.1.12):
+
+| Check | Result |
+| --- | --- |
+| Finish with Herdr not the active window, then opened on that tab | Stays lit while inactive; gone within 1 s of Herdr getting focus |
+| A second probe finishes while the first tab shows; click its tab | Dot clears |
+| A probe the window hadn't adopted yet finishes while hidden | Toast named "Codex" (was "An agent"); clicking it opens that tab and clears the dot |
+
+Not checked: the real KDE Wayland session, the light theme's colors, sound
+playback, and a layout without the button (alerts then stop while hidden,
+as before).
 
 ## Earlier builds, with real input
 
