@@ -155,6 +155,13 @@ function programIcon(program, color) {
   return program.tint ? svg(program.icon).size(14).flex_none().text_color(color) : image(program.icon).size(14).flex_none();
 }
 
+// A hover label drawn like Herdr's popups (popover fill, 1px border, 6px radius,
+// soft shadow) at tooltip size. HoverCard draws no surface of its own.
+function hoverLabel(t, text) {
+  return div().px(8).py(4).rounded(6).bg(t.popover).border(1).border_color(t.border).shadow_md()
+    .text_size(12).text_color(t.foreground).whitespace_nowrap().child(text);
+}
+
 export default class FloatSpace extends View {
   init(_props, cx) {
     this.copyProps = props() ?? {};
@@ -344,7 +351,7 @@ export default class FloatSpace extends View {
     // The label waits 1000 ms like the status bar's other buttons; .tooltip() is fixed at 500.
     return h_flex().size_full().items_center().justify_center().bg(t.chrome).border_t(1).border_color(t.border)
       .child(HoverCard.new("float-space-launcher-hover").anchor("bottom_center").open_delay(1000).trigger(button)
-        .content(div().text_size(12).text_color(t.foreground).child("Float Space · Ctrl+Shift+Space")));
+        .content(hoverLabel(t, "Float Space · Ctrl+Shift+Space").mb(6)));
   }
 
   renderBar() {
