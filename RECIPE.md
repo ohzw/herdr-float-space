@@ -129,14 +129,18 @@ their programs still running, returning the keyboard to the pane underneath.
 - **Window size**: a preset applies at once and closes the popup. The
   sliders show their value while dragging but change nothing until Apply;
   Reset puts 50 × 60 in the sliders; Escape or a click outside cancels.
-  Pressing the size button again closes the popup. Sizes share the same
-  window key and keep the current top-left position.
-- **Drag resizing**: press the arrows in the bottom-right 24 × 18px grip.
+  Pressing the size button again closes the popup. A preset keeps the
+  current position.
+- **Drag resizing**: press any edge or corner. Top and side targets are
+  6px wide; the bottom target is 18px tall. The outer 24px of each
+  horizontal band resizes diagonally. Cursors show the resize direction.
   A transparent app-sized overlay tracks movement beyond the scratch window.
   It draws an accent outline and percentage label without rebuilding the
   terminal. Release inside Herdr applies the size once; Escape cancels.
   A fresh press or losing app focus also cancels the tracker. Size changes
   use 1% steps, with the existing minimums and the available viewport space.
+  Only grabbed axes change; the opposite edge or corner stays fixed.
+  North and west resizing update the top-left position as well as the size.
 - Pressing on free header space and dragging moves the window; Herdr keeps
   the spot. Tabs, buttons and Notes don't start a drag.
 - Errors show as a Herdr notification titled "Float Space".
@@ -168,21 +172,19 @@ their programs still running, returning the keyboard to the pane underneath.
     started the reveal and it is still waiting for core; closing it also
     dismisses the toast. This keeps an existing toast usable after hiding
     Float Space.
-  - `"edge"` with a `side` (`left`, `right`, `bottom`): the border beside and
-    under the body.
+  - `"edge"` with a `side` (`top`, `left`, `right`, `bottom`): the outer
+    border and resize targets.
   - `"notes"`: Notes. `"size"`: the size popup.
   - `"resize"` with `drag`: the transparent tracking view, its preview, and
     the release or cancellation handlers.
   - none in a layout, or `"launcher"`: the optional button, which also runs
     the agent check every second.
 - **The window**: `openOverlay({kind: "window", key:
-  "float-space.window", frame: "none", width, height, layout})`,
+  "float-space.window.<positionRevision>", frame: "none", width, height, layout})`,
   with optional `at` from the last drag resize. The layout is a column with
-  `radius: 10` and no border: the 30px `bar` block; a row of the 1px `left`
-  edge, a `{terminal}` block or the `notes` block, and the 1px `right` edge; then the 18px
-  `bottom` edge. The header draws the border's top with `rounded_t(10)`,
-  the side edges fill with the border color, the bottom band draws
-  `border_b`, `border_l`, `border_r` and `rounded_b(10)`.
+  `radius: 10` and no border: the 6px `top` edge; the 30px `bar`; a row of
+  the 6px `left` edge, a `{terminal}` or `notes` block, and the 6px `right`
+  edge; then the 18px `bottom` edge. The resize bands draw 1px border lines.
 - **Commands** run by the controller: `toggle`, `show`, `hide`, `new`,
   `notes`, `next`, `prev`, `reveal-<address>`, `select-<address>`, `end-<address>`, `resize-<W>-<H>`,
   `resize-drop`, `reconcile`. The header, popup, resize tracker, and button
@@ -236,11 +238,14 @@ their programs still running, returning the keyboard to the pane underneath.
   window with the next tab first and only then ends the terminal: ending it
   first makes Herdr close the window, and closing then reopening flickers
   more. A failed kill puts the tab back.
-- Sizes share one window key so a resize does not recenter the scratch window.
-  Drag dimensions are bounded by the viewport space to the right and below
-  the fixed top-left, unless that space is smaller than the minimum size.
-  Presets still apply their requested size, even when the current position
-  leaves part of the window offscreen.
+- Each applied drag increments `positionRevision` and opens under that
+  placement key before closing the old overlay. Herdr prioritizes remembered
+  positions over `at`, so reusing a previous key would undo a north or west
+  resize after header movement. The new key remains stable across tab
+  changes, presets, and hide or reopen.
+- Drag dimensions are bounded by the viewport space on the grabbed side,
+  unless that space is smaller than the minimum size. Presets still apply
+  their requested size even when part of the window would be offscreen.
 - `pane.focus` doesn't reach overlay terminals in Herdr 0.1.10 (it shows a
   failed-command toast), so the terminal can't be focused for the person.
   `focused()` doesn't report one either: after a click into the window's

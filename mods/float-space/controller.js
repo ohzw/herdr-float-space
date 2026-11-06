@@ -9,6 +9,7 @@ export class FloatController {
     this.seen = null;
     this.previous = null;
     this.generation = 0;
+    this.key = null;
     this.reconciled = null;
   }
 
@@ -124,12 +125,15 @@ export class FloatController {
     this.mount(host, state);
   }
 
-  // Replacing the same key preserves the window's position.
+  // Open a new placement before closing the old one; processes stay alive.
   mount(host, state = this.state(host)) {
     this.generation += 1;
     const spec = windowSpec(state, this.generation);
+    const previous = this.overlay;
     this.overlay = host.open(spec);
     this.mounted = shownTerminal(state);
+    if (previous && spec.key !== this.key) host.close(previous);
+    this.key = spec.key;
   }
 
   hide(host, restore = true) {
@@ -179,7 +183,7 @@ export class FloatController {
       const state = this.state(host);
       const size = readSize(geometry.size);
       if (JSON.stringify(size) === JSON.stringify(state.size)) return;
-      this.patch(host, { size, position: geometry.position });
+      this.patch(host, { size, position: geometry.position, positionRevision: state.positionRevision + 1 });
       this.mount(host);
     } else if (/^resize-\d+-\d+$/.test(command)) {
       const [width, height] = command.slice(7).split("-").map(value => Number(value) / 100);

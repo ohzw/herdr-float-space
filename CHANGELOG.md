@@ -2,13 +2,15 @@
 
 ## Unreleased
 
-- Added a bottom-right resize grip in this fork. A transparent tracking
-  overlay follows the pointer across the app and previews the size as an
-  outline. Release applies the size once; Escape cancels.
-- Window sizes now share one position instead of remembering a separate
-  position for each size. Drag resizing keeps the top-left fixed.
-- Verified drag growth, shrinkage, size limits, Notes retention, and the
-  same running terminal on macOS with Herdr 0.1.13 and core 0.1.18.
+- Added resize targets on all four edges and corners in this fork, with
+  directional pointer cursors. A transparent tracking overlay previews the
+  new bounds; release applies them once, and Escape cancels.
+- North and west resizing update the position while keeping the opposite
+  edges fixed. A placement revision avoids Herdr reusing an old remembered
+  position when the resized overlay opens.
+- Verified all eight directions, resizing after header movement, Notes
+  retention, and the same running terminal on macOS with Herdr 0.1.13 and
+  core 0.1.18.
 - A tab goes back to the shell icon and its own title once the agent in it
   quits. Before, it kept the agent's icon and name, because herdr-core keeps
   an agent's last report after the agent exits.

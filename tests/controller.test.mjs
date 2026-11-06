@@ -1,12 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { FloatController } from "../mods/float-space/controller.js";
-import { readState, reconcile, returnPane, ownedTerminals, tabName, tabProgram, liveStatus, pressedInWindow, DEFAULT_SIZE, PRESETS, windowSpec, nextTitle, agentAlerts, unseenFinishes, tabStatus, startFolder } from "../mods/float-space/model.js";
-import { dragSize } from "../mods/float-space/model.js";
+import { readState, reconcile, returnPane, ownedTerminals, tabName, tabProgram, liveStatus, pressedInWindow, DEFAULT_SIZE, PRESETS, windowSpec, nextTitle, agentAlerts, unseenFinishes, tabStatus, startFolder, dragGeometry } from "../mods/float-space/model.js";
 
 // The block a window shows under its header: a terminal or Notes.
 function body(spec) {
-  return spec.layout.children[1].children[1];
+  return spec.layout.children[2].children[1];
 }
 
 function fixture() {
@@ -776,15 +775,34 @@ test("keyboard navigation is a no-op while hidden or with only Notes", async () 
   assert.equal(data.opened.length, 1);
 });
 
-test("corner resizing keeps the grab offset and clamps to visible viewport space", () => {
-  const start = {
-    viewport: { width: 1000, height: 800 }, size: { width: 0.5, height: 0.6 },
-    position: { x: 250, y: 160 }, down: { x: 742, y: 632 },
-  };
-  assert.deepEqual(dragSize(start, start.down), start.size);
-  assert.deepEqual(dragSize(start, { x: 842, y: 712 }), { width: 0.6, height: 0.7 });
-  assert.deepEqual(dragSize(start, { x: 10000, y: 10000 }), { width: 0.75, height: 0.8 });
-  assert.deepEqual(dragSize(start, { x: -10000, y: -10000 }), { width: 0.2, height: 0.3 });
+const resizeStart = {
+  viewport: { width: 1000, height: 800 }, size: { width: 0.5, height: 0.6 },
+  position: { x: 250, y: 160 }, down: { x: 742, y: 632 },
+};
+
+for (const [direction, width, height, x, y] of [
+  ["n", 0.5, 0.5, 250, 240], ["s", 0.5, 0.7, 250, 160],
+  ["w", 0.4, 0.6, 350, 160], ["e", 0.6, 0.6, 250, 160],
+  ["nw", 0.4, 0.5, 350, 240], ["ne", 0.6, 0.5, 250, 240],
+  ["sw", 0.4, 0.7, 350, 160], ["se", 0.6, 0.7, 250, 160],
+]) {
+  test(`${direction} resizing preserves grab offset and the opposite edges`, () => {
+    const start = { ...resizeStart, direction };
+    assert.deepEqual(dragGeometry(start, start.down), { size: start.size, position: start.position });
+    assert.deepEqual(dragGeometry(start, { x: 842, y: 712 }),
+      { size: { width, height }, position: { x, y } });
+  });
+}
+
+test("both diagonal orientations clamp size without moving the opposite corner", () => {
+  assert.deepEqual(dragGeometry({ ...resizeStart, direction: "se" }, { x: 10000, y: 10000 }),
+    { size: { width: 0.75, height: 0.8 }, position: { x: 250, y: 160 } });
+  assert.deepEqual(dragGeometry({ ...resizeStart, direction: "se" }, { x: -10000, y: -10000 }),
+    { size: { width: 0.2, height: 0.3 }, position: { x: 250, y: 160 } });
+  assert.deepEqual(dragGeometry({ ...resizeStart, direction: "nw" }, { x: -10000, y: -10000 }),
+    { size: { width: 0.75, height: 0.8 }, position: { x: 0, y: 0 } });
+  assert.deepEqual(dragGeometry({ ...resizeStart, direction: "nw" }, { x: 10000, y: 10000 }),
+    { size: { width: 0.2, height: 0.3 }, position: { x: 550, y: 400 } });
 });
 
 test("a dropped resize retains terminal ownership, selection and notes across reopen", async () => {

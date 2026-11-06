@@ -30,6 +30,19 @@ screenshots, not inferred from Orca's unverified synthetic-input responses.
   subpixel rounding in the vertical anchor.
 - Restored 50% × 60% and selected the terminal. App status reported no errors.
 
+### Eight-direction resizing
+
+- Sent real pointer drags to north, south, west, east, northwest, northeast,
+  southwest, and southeast targets. Each grabbed dimension grew by 2%;
+  ungrabbed dimensions stayed unchanged.
+- The opposite edges stayed fixed within 1.1 logical pixels, including
+  host layout rounding. Captured app frames after all eight actions and
+  inspected the moved northwest and southeast windows.
+- Dragged the header to a new position saved by Herdr, then resized from
+  northwest. The new placement applied instead of Herdr's saved old origin.
+- Notes survived that resize and hide or reopen. The terminal kept its
+  address, PID, and creation timestamp.
+
 Not exercised with live input: Escape cancellation during a held drag,
 focus-loss cancellation, release outside the app, app restart, or drag
 resizing on Linux or Windows. Model tests cover percentage limits and
@@ -38,7 +51,7 @@ grab offsets; controller tests cover stale releases and retained state.
 
 ## Automated checks
 
-- `npm test`: 59 passing lifecycle and state tests (2026-11-06).
+- `npm test`: 67 passing lifecycle and state tests (2026-11-06).
 - `python3 -m unittest discover -s tests -p 'test_*.py'`: 4 passing installer tests.
 - `herdr-app check mods/float-space`: passes on 0.1.13.
 - CI runs the first two on every push and pull request (Node 22 and 24,

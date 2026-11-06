@@ -1,6 +1,8 @@
 export const STATE_KEY = "float-space.v1";
 export const MAX_TERMINALS = 12;
 export const DEFAULT_SIZE = { width: 0.50, height: 0.60 };
+export const RESIZE_BORDER = 6;
+export const HEADER_HEIGHT = 30;
 // One click sizes: a small window for notes or a quick command, the default,
 // and room for an agent.
 export const PRESETS = [
@@ -21,17 +23,24 @@ export function readSize(value) {
   };
 }
 
-// Keep the grab offset: pressing inside the corner must not jump the edge.
-// Match readSize's percentage steps and keep the preview inside the viewport.
-export function dragSize(start, pointer) {
-  const { viewport, size, down, position } = start;
-  const limit = (value, minimum, full, origin) =>
-    Math.max(minimum, Math.min(Math.round(value * 100) / 100, 0.95,
-      Math.floor((full - origin) / full * 100) / 100));
-  return {
-    width: limit(size.width + (pointer.x - down.x) / viewport.width, 0.20, viewport.width, position.x),
-    height: limit(size.height + (pointer.y - down.y) / viewport.height, 0.30, viewport.height, position.y),
-  };
+// Resize only the grabbed axes; the opposite edges remain fixed.
+export function dragGeometry(start, pointer) {
+  const { viewport, size, down, position, direction } = start;
+  function axis(origin, fraction, full, delta, negative, positive, minimum) {
+    if ((!negative && !positive) || delta === 0) return [origin, fraction];
+    const end = origin + fraction * full;
+    const available = negative ? end : full - origin;
+    const desired = fraction + (negative ? -delta : delta) / full;
+    const next = Math.max(minimum, Math.min(Math.round(desired * 100) / 100,
+      0.95, Math.floor(available / full * 100) / 100));
+    if (next === fraction) return [origin, fraction];
+    return [negative ? end - next * full : origin, next];
+  }
+  const [x, width] = axis(position.x, size.width, viewport.width, pointer.x - down.x,
+    direction.includes("w"), direction.includes("e"), 0.20);
+  const [y, height] = axis(position.y, size.height, viewport.height, pointer.y - down.y,
+    direction.includes("n"), direction.includes("s"), 0.30);
+  return { size: { width, height }, position: { x, y } };
 }
 
 export function ownedTerminals(terminals, appHome) {
@@ -61,6 +70,8 @@ export function readState(value) {
     size,
     position: Number.isFinite(value?.position?.x) && Number.isFinite(value?.position?.y)
       ? { x: value.position.x, y: value.position.y } : null,
+    positionRevision: Number.isSafeInteger(value?.positionRevision) && value.positionRevision >= 0
+      ? value.positionRevision : 0,
     sequence: Math.max(tabs.length, Number.isSafeInteger(value?.sequence) ? value.sequence : 0),
   };
 }
@@ -236,12 +247,10 @@ export function windowSpec(state, generation = 0) {
   const body = address
     ? { id: "float-space-terminal", type: "block", content: { terminal: address } }
     : { id: "float-space-notes", type: "block", content: { mod: "float-space", props: { role: "notes" } } };
-  // One key preserves the top-left when a resize replaces the overlay.
-  const key = "float-space.window";
-  // A layout's border can't change color without replacing the window, so the
-  // mod draws its own, accent while the keyboard is in the window: the header
-  // its top, 1px blocks the sides, an 18px band the bottom and resize grip.
-  // The layout's 10px corners clip them like a pane card's.
+  // Herdr gives remembered positions priority over `at`. A new placement key
+  // lets north/west resizes move the origin without editing host state files.
+  const key = `float-space.window.${state.positionRevision}`;
+  // Resize bands draw a 1px border but keep a wider pointer target.
   const edge = (side, px) => ({ id: `float-space-edge-${side}`, type: "block", size: { px },
     content: { mod: "float-space", props: { role: "edge", side } } });
   return {
@@ -251,8 +260,9 @@ export function windowSpec(state, generation = 0) {
     layout: {
       id: "float-space-window", type: "column", background: "background", radius: 10, resizable: false,
       children: [
-        { id: "float-space-chrome", type: "block", size: { px: 30 }, content: { mod: "float-space", props: { role: "bar", generation } } },
-        { id: "float-space-body", type: "row", resizable: false, children: [edge("left", 1), body, edge("right", 1)] },
+        edge("top", RESIZE_BORDER),
+        { id: "float-space-chrome", type: "block", size: { px: HEADER_HEIGHT }, content: { mod: "float-space", props: { role: "bar", generation } } },
+        { id: "float-space-body", type: "row", resizable: false, children: [edge("left", RESIZE_BORDER), body, edge("right", RESIZE_BORDER)] },
         edge("bottom", 18),
       ],
     },

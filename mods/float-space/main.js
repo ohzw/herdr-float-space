@@ -1,7 +1,7 @@
 import { View, div, svg, image } from "gpui-kit";
 import { HoverCard, h_flex, v_flex, TextareaState, Textarea, SliderState, Slider, SliderTrack, SliderIndicator, SliderThumb } from "gpui-base";
 import { appHome, home, hc, focused, spaces, panes, terminals, shared, setShared, settings, props, theme, run, openOverlay, closeOverlay, notify, playSound, nextCommand, window as app } from "herdr";
-import { STATE_KEY, DEFAULT_SIZE, PRESETS, readState, ownedTerminals, tabName, tabProgram, liveStatus, pressedInWindow, agentAlerts, unseenFinishes, tabStatus, startFolder, dragSize } from "./model.js";
+import { STATE_KEY, DEFAULT_SIZE, PRESETS, RESIZE_BORDER, HEADER_HEIGHT, readState, ownedTerminals, tabName, tabProgram, liveStatus, pressedInWindow, agentAlerts, unseenFinishes, tabStatus, startFolder, dragGeometry } from "./model.js";
 import { FloatController } from "./controller.js";
 
 const WINDOW = "__herdr_float_space_window_v1";
@@ -78,6 +78,13 @@ async function executeCommand(command, owner, cx, geometry) {
 }
 
 function stop(_event, cx) { cx.stop_propagation(); }
+
+function resizeCursor(element, direction) {
+  if (direction === "n" || direction === "s") return element.cursor_ns_resize();
+  if (direction === "e" || direction === "w") return element.cursor_ew_resize();
+  if (direction === "ne" || direction === "sw") return element.cursor_nesw_resize();
+  return element.cursor_nwse_resize();
+}
 
 // The header and the edge blocks draw one border. Each waits on the same
 // change in a task of its own (a task's `cx.notify()` redraws its view even
@@ -191,7 +198,7 @@ export default class FloatSpace extends View {
     } else if (this.role === "resize") {
       this.handle = cx.focus_handle();
       this.drag = this.copyProps.drag;
-      this.preview = this.drag.size;
+      this.preview = { size: this.drag.size, position: this.drag.position };
       cx.timer.after(0, () => this.handle.focus());
       // Releases outside the app are not delivered. A focus loss, fresh press
       // or Escape dismisses the transparent tracking layer.
@@ -306,7 +313,8 @@ export default class FloatSpace extends View {
   notePress(event) {
     if (!event.bounds) return;
     const height = readState(shared(STATE_KEY)).size.height * window.viewport_size().height;
-    const inside = pressedInWindow(event.position, event.bounds, height);
+    const bounds = { ...event.bounds, y: event.bounds.y - RESIZE_BORDER * settings().zoom };
+    const inside = pressedInWindow(event.position, bounds, height);
     this.pressedIn = inside ? focusKey() : null;
     this.headerClicked = false;
     showFocus(inside);
@@ -446,12 +454,10 @@ export default class FloatSpace extends View {
             .child(svg("mods/float-space/close.svg").size(12)) : null,
         ].filter(Boolean));
     });
-    // Notes can't be closed, so it leads the header where a title would be; the
-    // terminal tabs follow. Free strip space drags the window. The outer edge is
-    // the top of the window's border; the line under the tabs stays neutral.
+    // Free header space moves the window; resize bands sit outside the controls.
     return v_flex().id("float-space-bar").track_focus(this.handle).on_mouse_down_out(event => this.notePress(event))
       .on_mouse_down("left", () => { this.headerClicked = true; this.handle.focus(); showFocus(true); })
-      .size_full().bg(t.background).border_t(1).border_l(1).border_r(1).rounded_t(10).border_color(ring)
+      .size_full().bg(t.background).border_l(1).border_r(1).border_color(ring)
       .child(h_flex().flex_1().min_h(0).px(6).gap(6).items_center().border_b(1).border_color(t.border)
       .text_color(t.foreground).text_size(12)
       .child(this.tab("float-notes-tab", svg("mods/float-space/notes.svg").size(14).flex_none().text_color(notes ? t.foreground : t.muted), "Notes",
@@ -463,17 +469,15 @@ export default class FloatSpace extends View {
       .child(this.iconButton("float-hide", "hide", "Hide · Ctrl+Shift+Space", () => act("hide"))));
   }
 
-  beginResize(event, cx) {
-    const bounds = event.bounds;
-    if (!bounds || event.position.x < bounds.x + bounds.width - 24) return;
+  beginResize(event, cx, direction, position) {
+    if (!event.bounds) return;
     cx.stop_propagation();
     const memory = windowShared();
     if (memory.resizeOverlay) return;
     const state = readState(shared(STATE_KEY));
     const viewport = window.viewport_size();
     const drag = {
-      down: event.position, size: state.size, viewport,
-      position: { x: bounds.x, y: bounds.y + bounds.height - viewport.height * state.size.height },
+      down: event.position, size: state.size, viewport, direction, position,
       generation: memory.controller.generation,
     };
     // Track across the whole app without remounting the scratch window.
@@ -489,46 +493,71 @@ export default class FloatSpace extends View {
 
   finishResize(event, cx) {
     cx.stop_propagation();
-    const size = dragSize(this.drag, event.position);
+    const geometry = dragGeometry(this.drag, event.position);
     this.cancelResize();
-    act("resize-drop", { size, position: this.drag.position, generation: this.drag.generation });
+    act("resize-drop", { ...geometry, generation: this.drag.generation });
   }
 
   renderResize() {
     const t = theme();
-    const { position, viewport } = this.drag;
-    return div().id("float-resize-tracker").size_full().relative().cursor_nwse_resize()
+    const { viewport, direction } = this.drag;
+    const { position, size } = this.preview;
+    return resizeCursor(div().id("float-resize-tracker").size_full().relative(), direction)
       .track_focus(this.handle)
       .on_key_down((event, cx) => {
         cx.stop_propagation();
         if (event.key === "escape") this.cancelResize();
       })
       .on_mouse_down("left", (_event, cx) => { cx.stop_propagation(); this.cancelResize(); })
-      .on_mouse_move((event, cx) => { this.preview = dragSize(this.drag, event.position); cx.notify(); })
+      .on_mouse_move((event, cx) => { this.preview = dragGeometry(this.drag, event.position); cx.notify(); })
       .on_mouse_up("left", (event, cx) => this.finishResize(event, cx))
       .child(div().absolute().left(position.x).top(position.y)
-        .w(this.preview.width * viewport.width).h(this.preview.height * viewport.height)
+        .w(size.width * viewport.width).h(size.height * viewport.height)
         .rounded(10).border(2).border_color(t.accent)
         .child(div().absolute().right(12).bottom(12).px(8).py(4).rounded(4)
           .bg(t.popover).text_color(t.foreground).text_size(12)
-          .child(`${Math.round(this.preview.width * 100)}% × ${Math.round(this.preview.height * 100)}% · release to apply · Esc to cancel`)));
+          .child(`${Math.round(size.width * 100)}% × ${Math.round(size.height * 100)}% · release to apply · Esc to cancel`)));
   }
 
-  // The window's sides and bottom, in the header's border color.
   renderEdge() {
     const t = theme();
+    const side = this.copyProps.side;
+    const horizontal = side === "top" || side === "bottom";
     const ring = windowShared().keyboard ? t.accent : t.input;
-    if (this.copyProps.side === "bottom") {
-      return div().id("float-resize-edge").size_full().relative()
-        .on_mouse_down("left", (event, cx) => this.beginResize(event, cx))
-        .child(div().absolute().inset_0().bg(t.background)
-          .border_b(1).border_l(1).border_r(1).rounded_b(10).border_color(ring))
-        .child(div().absolute().right(1).bottom(0).w(24).h(18).flex().items_center().justify_center()
-          .cursor_nwse_resize().text_color(t.muted).hover(el => el.text_color(t.accent))
-          .accessibility_label("Resize Float Space").tooltip("Drag to resize · release to apply")
-          .child(svg("mods/float-space/size.svg").size(12)));
+    const root = div().id(`float-resize-${side}`).size_full().relative().bg(t.background)
+      .on_mouse_down("left", (event, cx) => {
+        const bounds = event.bounds;
+        if (!bounds) return;
+        const state = readState(shared(STATE_KEY));
+        const viewport = window.viewport_size();
+        const width = state.size.width * viewport.width;
+        const height = state.size.height * viewport.height;
+        let direction = { top: "n", bottom: "s", left: "w", right: "e" }[side];
+        if (horizontal) {
+          const corner = 24 * settings().zoom;
+          if (event.position.x < bounds.x + corner) direction += "w";
+          else if (event.position.x > bounds.x + bounds.width - corner) direction += "e";
+        }
+        let y = bounds.y;
+        if (side === "bottom") y += bounds.height - height;
+        else if (!horizontal) y -= (RESIZE_BORDER + HEADER_HEIGHT) * settings().zoom;
+        const position = { x: side === "right" ? bounds.x + bounds.width - width : bounds.x, y };
+        this.beginResize(event, cx, direction, position);
+      });
+    if (!horizontal) {
+      const line = div().absolute().top(0).bottom(0).w(1).bg(ring);
+      return root.cursor_ew_resize().accessibility_label(`Resize ${side} edge`)
+        .child(side === "left" ? line.left(0) : line.right(0));
     }
-    return div().size_full().bg(ring);
+    const top = side === "top";
+    const frame = div().absolute().inset_0().border_l(1).border_r(1).border_color(ring);
+    return root.cursor_ns_resize().accessibility_label(`Resize ${side} edge`)
+      .child(top ? frame.border_t(1).rounded_t(10) : frame.border_b(1).rounded_b(10))
+      .child(resizeCursor(div().absolute().left(0).top(0).bottom(0).w(24), top ? "nw" : "sw"))
+      .child(resizeCursor(div().absolute().right(0).top(0).bottom(0).w(24), top ? "ne" : "se")
+        .when(!top, el => el.flex().items_center().justify_center().text_color(t.muted)
+          .tooltip("Drag any edge or corner to resize · release to apply")
+          .child(svg("mods/float-space/size.svg").size(12))));
   }
 
   // The terminals' font and size from Herdr's settings, so Notes reads like the

@@ -5,7 +5,7 @@ terminal tabs of its own and autosaved Notes shared across all your spaces.
 Press **Ctrl+Shift+Space**, run a side task or jot something down, press it
 again and you're back where you were. Your layout stays as it is.
 
-This fork adds bottom-right drag resizing to
+This fork adds eight-direction drag resizing to
 [thuanlm215/herdr-float-space](https://github.com/thuanlm215/herdr-float-space).
 It uses the desktop mod API without changing the Herdr binary.
 
@@ -53,10 +53,12 @@ It uses the desktop mod API without changing the Herdr binary.
   **Large** (85% × 88%, room for an agent). Sliders set any other size;
   **Apply** keeps it. Sizes share one window position. Drag free header
   space to move the window.
-- **Drag the bottom-right arrows** to resize. An outline previews the size;
-  release inside Herdr to apply it once. The terminal stays running and Notes
-  are preserved. **Escape** cancels. Moving outside the scratch window is
-  supported as long as the pointer remains inside Herdr.
+- **Drag any edge or corner** to resize. The pointer shows the direction.
+  An outline previews the size; release inside Herdr to apply it once.
+  The opposite edge or corner stays fixed, including when resizing from
+  the top or left. The terminal stays running and Notes are preserved.
+  **Escape** cancels. The pointer can leave the scratch window while it
+  remains inside Herdr.
 - **−** hides the window and leaves shells and their programs running. The
   selected tab's **×** ends its terminal at once, like closing a tab in
   Herdr. When a terminal ends, the window shows the next tab, or Notes after
@@ -139,8 +141,7 @@ isn't its own, and it finds its shells again if its saved tab list is lost.
   to pane" works.
 - Drag resizing previews an outline, not live terminal content. It applies
   the size by replacing the overlay once on release.
-- Only the bottom-right corner resizes. The presets and sliders remain
-  available as a non-drag alternative.
+- The presets and sliders remain available as a non-drag alternative.
 - Herdr does not deliver mouse releases outside its app window. A new click
   or Escape cancels a tracker left open by such a release. Losing app focus
   also cancels it.
