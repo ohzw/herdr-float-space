@@ -9,7 +9,6 @@ export class FloatController {
     this.seen = null;
     this.previous = null;
     this.generation = 0;
-    this.key = null;
     this.reconciled = null;
   }
 
@@ -125,16 +124,12 @@ export class FloatController {
     this.mount(host, state);
   }
 
-  // Opening the same key replaces the window in place; a new size has a new
-  // key, so the old window is closed after the new one shows.
+  // Replacing the same key preserves the window's position.
   mount(host, state = this.state(host)) {
     this.generation += 1;
     const spec = windowSpec(state, this.generation);
-    const previous = this.overlay;
     this.overlay = host.open(spec);
     this.mounted = shownTerminal(state);
-    if (previous && previous !== this.overlay && spec.key !== this.key) host.close(previous);
-    this.key = spec.key;
   }
 
   hide(host, restore = true) {
@@ -149,7 +144,7 @@ export class FloatController {
     if (restore && pane) host.focusPane(pane);
   }
 
-  async handle(command, host) {
+  async handle(command, host, geometry) {
     if (command === "toggle") {
       if (this.overlay && !(await this.closedByHost(host))) this.hide(host);
       else await this.show(host);
@@ -178,6 +173,14 @@ export class FloatController {
       const index = state.page === "notes" ? 0 : Math.max(0, pages.indexOf(state.active));
       const next = pages[(index + (command === "next" ? 1 : pages.length - 1)) % pages.length];
       await this.handle(next === "notes" ? "notes" : `select-${next}`, host);
+    } else if (command === "resize-drop") {
+      // A hidden/replaced window must not be resurrected by a late release.
+      if (!this.overlay || geometry.generation !== this.generation) return;
+      const state = this.state(host);
+      const size = readSize(geometry.size);
+      if (JSON.stringify(size) === JSON.stringify(state.size)) return;
+      this.patch(host, { size, position: geometry.position });
+      this.mount(host);
     } else if (/^resize-\d+-\d+$/.test(command)) {
       const [width, height] = command.slice(7).split("-").map(value => Number(value) / 100);
       const state = this.state(host);

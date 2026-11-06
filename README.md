@@ -5,6 +5,10 @@ terminal tabs of its own and autosaved Notes shared across all your spaces.
 Press **Ctrl+Shift+Space**, run a side task or jot something down, press it
 again and you're back where you were. Your layout stays as it is.
 
+This fork adds bottom-right drag resizing to
+[thuanlm215/herdr-float-space](https://github.com/thuanlm215/herdr-float-space).
+It uses the desktop mod API without changing the Herdr binary.
+
 ![Float Space](preview.png)
 
 ## Use
@@ -47,8 +51,12 @@ again and you're back where you were. Your layout stays as it is.
 - **Window size** (diagonal arrows) has three presets: **Small** (20% × 50%,
   for notes or a quick command), **Normal** (50% × 60%, the default) and
   **Large** (85% × 88%, room for an agent). Sliders set any other size;
-  **Apply** keeps it. Each size opens centered the first time and then
-  wherever you last dragged it. Drag free header space to move the window.
+  **Apply** keeps it. Sizes share one window position. Drag free header
+  space to move the window.
+- **Drag the bottom-right arrows** to resize. An outline previews the size;
+  release inside Herdr to apply it once. The terminal stays running and Notes
+  are preserved. **Escape** cancels. Moving outside the scratch window is
+  supported as long as the pointer remains inside Herdr.
 - **−** hides the window and leaves shells and their programs running. The
   selected tab's **×** ends its terminal at once, like closing a tab in
   Herdr. When a terminal ends, the window shows the next tab, or Notes after
@@ -56,15 +64,16 @@ again and you're back where you were. Your layout stays as it is.
 
 ## Install
 
-Requires the Herdr desktop app and `hc`. Tested on Linux with Herdr
-**0.1.11** and core **0.1.16** (first built on 0.1.10 / 0.1.15); macOS and
-Windows have not been tested.
+Requires the Herdr desktop app and `hc`. Drag resizing was tested on macOS
+with Herdr **0.1.13** and core **0.1.18**. Upstream tested the original mod
+on Linux with Herdr **0.1.11** and core **0.1.16**. This fork's drag behavior
+has not been tested on Linux or Windows.
 
 Float Space runs `hc` to start, list and end its own shells, and keeps Notes
 as plaintext in Herdr's `shared.json`. It makes no network requests.
 
 **With your Herdr agent:** ask it to add this mod from
-`https://github.com/thuanlm215/herdr-float-space`. It copies
+`https://github.com/ohzw/herdr-float-space/tree/feat/drag-resize`. It copies
 `mods/float-space` into the app and merges `keys.json`, as described in the
 app's `AGENTS.md`.
 
@@ -128,7 +137,13 @@ isn't its own, and it finds its shells again if its saved tab list is lost.
   Split, Zoom and Close pane items don't work there (a mod can't replace that
   menu for its own window). Use **+** and the tab's **×**; "Send right-clicks
   to pane" works.
-- Mods can't resize a window by its edges; use **Window size**.
+- Drag resizing previews an outline, not live terminal content. It applies
+  the size by replacing the overlay once on release.
+- Only the bottom-right corner resizes. The presets and sliders remain
+  available as a non-drag alternative.
+- Herdr does not deliver mouse releases outside its app window. A new click
+  or Escape cancels a tracker left open by such a release. Losing app focus
+  also cancels it.
 
 ## Development
 

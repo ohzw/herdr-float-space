@@ -21,6 +21,19 @@ export function readSize(value) {
   };
 }
 
+// Keep the grab offset: pressing inside the corner must not jump the edge.
+// Match readSize's percentage steps and keep the preview inside the viewport.
+export function dragSize(start, pointer) {
+  const { viewport, size, down, position } = start;
+  const limit = (value, minimum, full, origin) =>
+    Math.max(minimum, Math.min(Math.round(value * 100) / 100, 0.95,
+      Math.floor((full - origin) / full * 100) / 100));
+  return {
+    width: limit(size.width + (pointer.x - down.x) / viewport.width, 0.20, viewport.width, position.x),
+    height: limit(size.height + (pointer.y - down.y) / viewport.height, 0.30, viewport.height, position.y),
+  };
+}
+
 export function ownedTerminals(terminals, appHome) {
   return terminals.filter(terminal => /^t[0-9a-z]+$/.test(terminal.address ?? "")
     && terminal.state === "live"
@@ -46,6 +59,8 @@ export function readState(value) {
     notes: typeof value?.notes === "string" ? value.notes : "",
     page: value?.page === "notes" ? "notes" : "terminal",
     size,
+    position: Number.isFinite(value?.position?.x) && Number.isFinite(value?.position?.y)
+      ? { x: value.position.x, y: value.position.y } : null,
     sequence: Math.max(tabs.length, Number.isSafeInteger(value?.sequence) ? value.sequence : 0),
   };
 }
@@ -221,25 +236,24 @@ export function windowSpec(state, generation = 0) {
   const body = address
     ? { id: "float-space-terminal", type: "block", content: { terminal: address } }
     : { id: "float-space-notes", type: "block", content: { mod: "float-space", props: { role: "notes" } } };
-  // Herdr reopens a key where it was dropped, even when a taller size no longer
-  // fits there. Each size has its own key: a new one opens centered, and each
-  // keeps its own spot.
-  const key = `float-space.window.${Math.round(state.size.width * 100)}x${Math.round(state.size.height * 100)}`;
+  // One key preserves the top-left when a resize replaces the overlay.
+  const key = "float-space.window";
   // A layout's border can't change color without replacing the window, so the
   // mod draws its own, accent while the keyboard is in the window: the header
-  // its top, 1px blocks the sides, a 10px band the bottom and its corners.
+  // its top, 1px blocks the sides, an 18px band the bottom and resize grip.
   // The layout's 10px corners clip them like a pane card's.
   const edge = (side, px) => ({ id: `float-space-edge-${side}`, type: "block", size: { px },
     content: { mod: "float-space", props: { role: "edge", side } } });
   return {
     kind: "window", key, frame: "none",
     width: state.size.width, height: state.size.height,
+    ...(state.position ? { at: state.position } : {}),
     layout: {
       id: "float-space-window", type: "column", background: "background", radius: 10, resizable: false,
       children: [
         { id: "float-space-chrome", type: "block", size: { px: 30 }, content: { mod: "float-space", props: { role: "bar", generation } } },
         { id: "float-space-body", type: "row", resizable: false, children: [edge("left", 1), body, edge("right", 1)] },
-        edge("bottom", 10),
+        edge("bottom", 18),
       ],
     },
   };

@@ -1,7 +1,7 @@
 import { View, div, svg, image } from "gpui-kit";
 import { HoverCard, h_flex, v_flex, TextareaState, Textarea, SliderState, Slider, SliderTrack, SliderIndicator, SliderThumb } from "gpui-base";
 import { appHome, home, hc, focused, spaces, panes, terminals, shared, setShared, settings, props, theme, run, openOverlay, closeOverlay, notify, playSound, nextCommand, window as app } from "herdr";
-import { STATE_KEY, DEFAULT_SIZE, PRESETS, readState, ownedTerminals, tabName, tabProgram, liveStatus, pressedInWindow, agentAlerts, unseenFinishes, tabStatus, startFolder } from "./model.js";
+import { STATE_KEY, DEFAULT_SIZE, PRESETS, readState, ownedTerminals, tabName, tabProgram, liveStatus, pressedInWindow, agentAlerts, unseenFinishes, tabStatus, startFolder, dragSize } from "./model.js";
 import { FloatController } from "./controller.js";
 
 const WINDOW = "__herdr_float_space_window_v1";
@@ -48,8 +48,8 @@ function windowShared() {
 // Herdr stops a copy's tasks when that copy closes or reloads, and a remount
 // closes the header, so neither the header nor a popup may run one. The
 // shortcut's `mod.open` starts the same copy without a command: a toggle.
-function act(command) {
-  openOverlay({ mod: "float-space", kind: "window", frame: "none", width: 1, height: 1, props: { role: "run", command } });
+function act(command, geometry) {
+  openOverlay({ mod: "float-space", kind: "window", frame: "none", width: 1, height: 1, props: { role: "run", command, geometry } });
 }
 
 // One command at a time. A claim, not a shared promise chain: a chain through
@@ -65,10 +65,10 @@ function release(owner) {
   if (memory.lease?.owner === owner) memory.lease = null;
 }
 
-async function executeCommand(command, owner, cx) {
+async function executeCommand(command, owner, cx, geometry) {
   try {
     await claim(cx, owner);
-    await windowShared().controller.handle(command, host());
+    await windowShared().controller.handle(command, host(), geometry);
   } catch (error) {
     notify({ title: "Float Space", body: String(error?.message ?? error), level: "error" });
   } finally {
@@ -187,7 +187,19 @@ export default class FloatSpace extends View {
     this.role = role ?? (this.copyProps.overlay ? "run" : "launcher");
     if (this.role === "run") {
       const owner = this.copyProps.overlay;
-      cx.spawn(cx => executeCommand(this.copyProps.command ?? "toggle", owner, cx));
+      cx.spawn(cx => executeCommand(this.copyProps.command ?? "toggle", owner, cx, this.copyProps.geometry));
+    } else if (this.role === "resize") {
+      this.handle = cx.focus_handle();
+      this.drag = this.copyProps.drag;
+      this.preview = this.drag.size;
+      cx.timer.after(0, () => this.handle.focus());
+      // Releases outside the app are not delivered. A focus loss, fresh press
+      // or Escape dismisses the transparent tracking layer.
+      let active = app().active;
+      cx.timer.every(100, () => {
+        if (active && !app().active) this.cancelResize();
+        active = app().active;
+      });
     } else if (this.role === "alert") {
       const { overlay, address, title, level } = this.copyProps;
       const command = `alert-${overlay}`;
@@ -309,6 +321,7 @@ export default class FloatSpace extends View {
 
   async close() {
     if (this.toast) closeOverlay(this.toast);
+    if (this.role === "resize" && windowShared().resizeOverlay === this.copyProps.overlay) windowShared().resizeOverlay = null;
     if (this.role === "notes") {
       windowShared().notesFocused = false;
       showFocus(false);
@@ -450,12 +463,70 @@ export default class FloatSpace extends View {
       .child(this.iconButton("float-hide", "hide", "Hide · Ctrl+Shift+Space", () => act("hide"))));
   }
 
+  beginResize(event, cx) {
+    const bounds = event.bounds;
+    if (!bounds || event.position.x < bounds.x + bounds.width - 24) return;
+    cx.stop_propagation();
+    const memory = windowShared();
+    if (memory.resizeOverlay) return;
+    const state = readState(shared(STATE_KEY));
+    const viewport = window.viewport_size();
+    const drag = {
+      down: event.position, size: state.size, viewport,
+      position: { x: bounds.x, y: bounds.y + bounds.height - viewport.height * state.size.height },
+      generation: memory.controller.generation,
+    };
+    // Track across the whole app without remounting the scratch window.
+    memory.resizeOverlay = openOverlay({ mod: "float-space", kind: "window", frame: "none",
+      width: 1, height: 1, at: { x: 0, y: 0 }, props: { role: "resize", drag } });
+  }
+
+  cancelResize() {
+    const id = this.copyProps.overlay;
+    if (windowShared().resizeOverlay === id) windowShared().resizeOverlay = null;
+    closeOverlay(id);
+  }
+
+  finishResize(event, cx) {
+    cx.stop_propagation();
+    const size = dragSize(this.drag, event.position);
+    this.cancelResize();
+    act("resize-drop", { size, position: this.drag.position, generation: this.drag.generation });
+  }
+
+  renderResize() {
+    const t = theme();
+    const { position, viewport } = this.drag;
+    return div().id("float-resize-tracker").size_full().relative().cursor_nwse_resize()
+      .track_focus(this.handle)
+      .on_key_down((event, cx) => {
+        cx.stop_propagation();
+        if (event.key === "escape") this.cancelResize();
+      })
+      .on_mouse_down("left", (_event, cx) => { cx.stop_propagation(); this.cancelResize(); })
+      .on_mouse_move((event, cx) => { this.preview = dragSize(this.drag, event.position); cx.notify(); })
+      .on_mouse_up("left", (event, cx) => this.finishResize(event, cx))
+      .child(div().absolute().left(position.x).top(position.y)
+        .w(this.preview.width * viewport.width).h(this.preview.height * viewport.height)
+        .rounded(10).border(2).border_color(t.accent)
+        .child(div().absolute().right(12).bottom(12).px(8).py(4).rounded(4)
+          .bg(t.popover).text_color(t.foreground).text_size(12)
+          .child(`${Math.round(this.preview.width * 100)}% × ${Math.round(this.preview.height * 100)}% · release to apply · Esc to cancel`)));
+  }
+
   // The window's sides and bottom, in the header's border color.
   renderEdge() {
     const t = theme();
     const ring = windowShared().keyboard ? t.accent : t.input;
     if (this.copyProps.side === "bottom") {
-      return div().size_full().bg(t.background).border_b(1).border_l(1).border_r(1).rounded_b(10).border_color(ring);
+      return div().id("float-resize-edge").size_full().relative()
+        .on_mouse_down("left", (event, cx) => this.beginResize(event, cx))
+        .child(div().absolute().inset_0().bg(t.background)
+          .border_b(1).border_l(1).border_r(1).rounded_b(10).border_color(ring))
+        .child(div().absolute().right(1).bottom(0).w(24).h(18).flex().items_center().justify_center()
+          .cursor_nwse_resize().text_color(t.muted).hover(el => el.text_color(t.accent))
+          .accessibility_label("Resize Float Space").tooltip("Drag to resize · release to apply")
+          .child(svg("mods/float-space/size.svg").size(12)));
     }
     return div().size_full().bg(ring);
   }
@@ -510,6 +581,7 @@ export default class FloatSpace extends View {
     if (this.role === "notes") return this.renderNotes();
     if (this.role === "size") return this.renderSize();
     if (this.role === "edge") return this.renderEdge();
+    if (this.role === "resize") return this.renderResize();
     if (this.role === "run" || this.role === "alert") return div();
     return this.renderLauncher();
   }

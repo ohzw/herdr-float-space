@@ -5,11 +5,42 @@ Checked on 2026-10-31 with Herdr app 0.1.10, core 0.1.15, and re-checked on
 (KDE Wayland), in the shipped `main` layout. This records technical checks;
 day-to-day comfort is for the person using it to judge.
 
+## Drag-resize fork on macOS (2026-11-06)
+
+Checked on macOS with Herdr app 0.1.13 and core 0.1.18. The app binary and
+layout files were unchanged. The fork was installed with
+`python3 scripts/install.py --update`.
+
+Actual pointer drags were sent through Orca's background input. Results
+were checked in `shared.json`, `herdr-app status`, `hc get`, and app
+screenshots, not inferred from Orca's unverified synthetic-input responses.
+
+- Dragged from 50% × 60% to 59% × 68%, then shrank to 47% × 57%.
+  Releases outside the original scratch window, but inside Herdr, applied.
+- Dragged inward past the minimum: stopped at 20% × 30%.
+- Dragged outward to the app's bottom-right: stopped at 74% × 80% for the
+  tested window position, leaving the resized window inside the viewport.
+- Entered temporary Notes text, resized, hid, and reopened the window.
+  The text and selected Notes page were retained. Removed the temporary text.
+- The owned terminal kept the same address, PID, and creation timestamp
+  across the later resize checks. No replacement shell was started.
+- Moved the footer border into a child element after the first checks:
+  measuring the bordered event element had shifted the anchor by 1px on
+  each resize. Later drags kept the horizontal anchor unchanged, with
+  subpixel rounding in the vertical anchor.
+- Restored 50% × 60% and selected the terminal. App status reported no errors.
+
+Not exercised with live input: Escape cancellation during a held drag,
+focus-loss cancellation, release outside the app, app restart, or drag
+resizing on Linux or Windows. Model tests cover percentage limits and
+grab offsets; controller tests cover stale releases and retained state.
+
+
 ## Automated checks
 
-- `npm test`: 56 passing lifecycle and state tests (2026-11-04).
+- `npm test`: 59 passing lifecycle and state tests (2026-11-06).
 - `python3 -m unittest discover -s tests -p 'test_*.py'`: 4 passing installer tests.
-- `herdr-app check mods/float-space`: passes (0.1.10 and 0.1.11).
+- `herdr-app check mods/float-space`: passes on 0.1.13.
 - CI runs the first two on every push and pull request (Node 22 and 24,
   Python 3.10 and 3.13), plus JSON and installer file-list checks.
 
@@ -20,11 +51,11 @@ core queries, warm reopening without a core query, no-op reconciliation
 without writes, focus returning after a space change, Herdr closing the
 window when its terminal ends (with a lagging and an up-to-date snapshot, the
 last terminal, and a press that reopens the window meanwhile), layout changes,
-closes from replaced or hidden windows, one window key per size, and the
-presets. The installer tests cover shortcut conflicts, repeat installs and
+closes from replaced or hidden windows, stale resize releases, retained
+resize state, and the presets. The installer tests cover shortcut conflicts, repeat installs and
 refusing to overwrite edited or extra installed files.
 
-## Running app, current build
+## Upstream Linux running-app checks
 
 Checked with the app CLI (`herdr-app do`, `status`, `shot`), `hc` and the
 journal, without synthetic mouse or keyboard input. Commands other than the
@@ -177,10 +208,11 @@ replaced.
 - `pane.focus {terminal}` doesn't search overlay terminals in Herdr 0.1.10
   and shows a failed-command notification, so the window focuses its own
   header and a click focuses the terminal.
-- Layout dividers and window edges can't be dragged in an overlay, and mods
-  have no resize call; the size popup applies a size once.
+- Herdr has no in-place overlay resize call. This fork tracks pointer
+  movement in a transparent overlay and applies the size once on release.
 - The command palette is a fixed list (Herdr's own commands and layouts);
   mods can't add entries.
 
-Not tested: macOS, Windows, remote machines, a machine reboot or a core
-crash. Reboot behavior is from Herdr's documentation of `--keep`.
+Earlier upstream checks did not cover macOS, Windows, remote machines,
+a machine reboot, or a core crash. Reboot behavior is from Herdr's
+documentation of `--keep`. See the macOS fork checks above for newer coverage.

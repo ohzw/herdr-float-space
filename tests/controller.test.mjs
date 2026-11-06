@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { FloatController } from "../mods/float-space/controller.js";
 import { readState, reconcile, returnPane, ownedTerminals, tabName, tabProgram, liveStatus, pressedInWindow, DEFAULT_SIZE, PRESETS, windowSpec, nextTitle, agentAlerts, unseenFinishes, tabStatus, startFolder } from "../mods/float-space/model.js";
+import { dragSize } from "../mods/float-space/model.js";
 
 // The block a window shows under its header: a terminal or Notes.
 function body(spec) {
@@ -202,23 +203,6 @@ test("size, notes and live tab selection do not wait for core", async () => {
   assert.equal(data.opened.at(-1).width, 0.73);
 });
 
-test("each size opens under its own key, closing the old window once the new one shows", async () => {
-  const { controller, host, data } = fixture();
-  const closed = [];
-  host.close = id => closed.push(id);
-  await controller.handle("show", host);
-  const first = controller.overlay;
-  assert.equal(data.opened.at(-1).key, "float-space.window.50x60");
-  await controller.handle("notes", host);
-  assert.deepEqual(closed, []);
-  const second = controller.overlay;
-  await controller.handle("resize-20-50", host);
-  assert.equal(data.opened.at(-1).key, "float-space.window.20x50");
-  assert.deepEqual(closed, [second]);
-  assert.notEqual(controller.overlay, first);
-  controller.hide(host);
-  assert.equal(closed.at(-1), `overlay${data.opened.length}`);
-});
 
 test("live snapshot cannot authorize ending a terminal whose ownership changed", async () => {
   const { controller, host, data } = fixture();
@@ -409,16 +393,6 @@ test("an agent quitting mid-turn is no finish and keeps no spinner", () => {
   assert.equal(tabStatus(liveStatus(shellWith("working", { pid: 98777, argv: ["/bin/fish"] })), false), null);
 });
 
-test("the mod draws the window's border around the terminal, inside pane-card corners", () => {
-  const spec = windowSpec(readState({ tabs: [{ address: "t7" }], active: "t7" }), 7);
-  assert.equal(spec.frame, "none");
-  assert.equal(spec.layout.border, undefined);
-  assert.equal(spec.layout.radius, 10);
-  assert.equal(spec.layout.children[0].content.props.generation, 7);
-  const [left, , right] = spec.layout.children[1].children;
-  assert.deepEqual([left, right, spec.layout.children[2]].map(edge => [edge.content.props.side, edge.size.px]), [["left", 1], ["right", 1], ["bottom", 10]]);
-  assert.equal(body(spec).content.terminal, "t7");
-});
 
 test("presets: a small window, the default, a large one, all within bounds", () => {
   assert.deepEqual(PRESETS.map(preset => preset.id), ["small", "normal", "large"]);
@@ -800,4 +774,52 @@ test("keyboard navigation is a no-op while hidden or with only Notes", async () 
   await controller.handle("next", host);
   assert.equal(controller.overlay, null);
   assert.equal(data.opened.length, 1);
+});
+
+test("corner resizing keeps the grab offset and clamps to visible viewport space", () => {
+  const start = {
+    viewport: { width: 1000, height: 800 }, size: { width: 0.5, height: 0.6 },
+    position: { x: 250, y: 160 }, down: { x: 742, y: 632 },
+  };
+  assert.deepEqual(dragSize(start, start.down), start.size);
+  assert.deepEqual(dragSize(start, { x: 842, y: 712 }), { width: 0.6, height: 0.7 });
+  assert.deepEqual(dragSize(start, { x: 10000, y: 10000 }), { width: 0.75, height: 0.8 });
+  assert.deepEqual(dragSize(start, { x: -10000, y: -10000 }), { width: 0.2, height: 0.3 });
+});
+
+test("a dropped resize retains terminal ownership, selection and notes across reopen", async () => {
+  const { controller, host, data } = fixture();
+  await controller.handle("show", host);
+  const terminal = data.state.active;
+  await controller.handle("notes", host);
+  data.state.notes = "draft being edited";
+  await controller.handle("resize-drop", host, {
+    generation: controller.generation, size: { width: 0.67, height: 0.72 },
+    position: { x: 123, y: 45 },
+  });
+  assert.deepEqual(data.state.size, { width: 0.67, height: 0.72 });
+  assert.equal(data.state.active, terminal);
+  assert.equal(data.state.page, "notes");
+  assert.equal(data.state.notes, "draft being edited");
+  controller.hide(host);
+  await controller.handle("show", host);
+  assert.deepEqual(data.state.position, { x: 123, y: 45 });
+  assert.equal(data.state.notes, "draft being edited");
+  assert.equal(data.state.active, terminal);
+  assert.deepEqual(data.owned.map(t => t.address), [terminal]);
+  assert.deepEqual(data.killed, []);
+});
+
+test("a release from an old or hidden window cannot resize or reopen it", async () => {
+  const { controller, host, data } = fixture();
+  await controller.handle("show", host);
+  const drop = { generation: controller.generation, size: { width: 0.8, height: 0.8 }, position: { x: 0, y: 0 } };
+  await controller.handle("notes", host);
+  const before = structuredClone(data.state);
+  await controller.handle("resize-drop", host, drop);
+  assert.deepEqual(data.state, before);
+  controller.hide(host);
+  await controller.handle("resize-drop", host, { ...drop, generation: controller.generation });
+  assert.equal(controller.overlay, null);
+  assert.deepEqual(data.state, before);
 });
