@@ -1,7 +1,7 @@
 import { View, div, svg, image } from "gpui-kit";
 import { HoverCard, h_flex, v_flex, TextareaState, Textarea, SliderState, Slider, SliderTrack, SliderIndicator, SliderThumb } from "gpui-base";
 import { appHome, home, hc, focused, spaces, panes, terminals, shared, setShared, settings, props, theme, run, openOverlay, closeOverlay, notify, playSound, nextCommand, window as app } from "herdr";
-import { STATE_KEY, DEFAULT_SIZE, PRESETS, readState, ownedTerminals, tabName, pressedInWindow, agentAlerts, unseenFinishes, tabStatus, startFolder } from "./model.js";
+import { STATE_KEY, DEFAULT_SIZE, PRESETS, readState, ownedTerminals, tabName, tabProgram, liveStatus, pressedInWindow, agentAlerts, unseenFinishes, tabStatus, startFolder } from "./model.js";
 import { FloatController } from "./controller.js";
 
 const WINDOW = "__herdr_float_space_window_v1";
@@ -416,12 +416,14 @@ export default class FloatSpace extends View {
     const ring = windowShared().keyboard ? t.accent : t.input;
     this.drawnMarks = windowShared().marks;
     const unseen = new Set(windowShared().unseen ?? []);
+    // The shell entry as Herdr shows it now, so the person's programs.json applies.
+    const shell = live.find(item => item.program?.key === "shell")?.program;
     const tabs = state.tabs.map(tab => {
       const terminal = live.find(item => item.address === tab.address);
       const name = tabName(tab, terminal);
-      const status = tabStatus(terminal?.status, unseen.has(tab.address));
+      const status = tabStatus(liveStatus(terminal), unseen.has(tab.address));
       const active = state.page === "terminal" && state.active === tab.address;
-      return this.tab(`float-tab-${tab.address}`, programIcon(terminal?.program, t.muted), name, active,
+      return this.tab(`float-tab-${tab.address}`, programIcon(tabProgram(terminal, shell), t.muted), name, active,
         () => act(`select-${tab.address}`), [
           status === "working" ? svg("mods/float-space/spinner.svg").size(12).flex_none().text_color(t.working).spin(900)
             : status ? div().size(6).flex_none().rounded(3).bg(t[status]) : null,

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- A tab goes back to the shell icon and its own title once the agent in it
+  quits. Before, it kept the agent's icon and name, because herdr-core keeps
+  an agent's last report after the agent exits.
 - Notes no longer jumps when you press Enter at the bottom: the text moves up
   one row per new line, as in a terminal. Before, in a window tall enough for
   24 rows, it went up three rows for a moment and then dropped back two.

@@ -23,7 +23,8 @@ their programs still running, returning the keyboard to the pane underneath.
     14px icon from the app's program table (an agent's own icon in full color,
     a shell's `>_` tinted `muted`), then the name truncated at 135px. An agent
     shows its program's name ("Codex", "Claude Code"); a shell keeps its tab
-    title, "Terminal 2": the lowest number no open tab uses. The selected tab is `foreground` on `raised` with a
+    title, "Terminal 2": the lowest number no open tab uses. Once the agent
+    quits, the tab is the shell again: `>_`, its tab title, no status. The selected tab is `foreground` on `raised` with a
     1px `border` outline and a 12px × (`dim`, `foreground` on hover) at its
     end; the others are `muted` on `background` with no outline. Every tab gets
     the `hover` background under the pointer.
@@ -274,6 +275,13 @@ their programs still running, returning the keyboard to the pane underneath.
   (`<dot>|<unseen addresses>`) with what they last drew and call their own
   `cx.notify()`. Only the button watches while the window is hidden; a
   layout without it gets no alerts then.
+- The core keeps an agent's last 7501 report after the agent quits, so
+  `terminals()` goes on giving its `program` (Antigravity) and `status` over
+  a bare shell. A tab treats the agent as gone when the foreground is the
+  terminal's own process with its own argv (`foreground.pid === pid`, same
+  `argv`; `exec agy` keeps the pid, not the argv), and then draws the shell
+  entry another listed terminal shows (Herdr's `icons/shell.svg` when none
+  does), its tab title and no status, and raises no alert.
 - `terminals()` can lag or come back empty: confirm with `hc ls` before
   treating a terminal as gone, and list owned terminals again right before
   `hc kill`. Never add `herdr.space` or `herdr.tab` labels, which would put

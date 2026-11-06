@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { FloatController } from "../mods/float-space/controller.js";
-import { readState, reconcile, returnPane, ownedTerminals, tabName, pressedInWindow, DEFAULT_SIZE, PRESETS, windowSpec, nextTitle, agentAlerts, unseenFinishes, tabStatus, startFolder } from "../mods/float-space/model.js";
+import { readState, reconcile, returnPane, ownedTerminals, tabName, tabProgram, liveStatus, pressedInWindow, DEFAULT_SIZE, PRESETS, windowSpec, nextTitle, agentAlerts, unseenFinishes, tabStatus, startFolder } from "../mods/float-space/model.js";
 
 // The block a window shows under its header: a terminal or Notes.
 function body(spec) {
@@ -370,6 +370,43 @@ test("tabs, tooltips and the end dialog share one name", async () => {
   assert.equal(tabName(tab, { program: { agent: true, name: "Codex" } }), "Codex");
   assert.equal(tabName(tab, { program: { agent: false, name: "fish" } }), "Terminal 1");
   assert.equal(tabName(tab, undefined), "Terminal 1");
+});
+
+// As the core lists a Float Space shell after `agy` ran in it and quit.
+const antigravity = { key: "antigravity", name: "Antigravity", icon: "icons/antigravity.svg", tint: false, tile: "#1c1d21", color: "#ffffff", shell: false, agent: true };
+function shellWith(status, foreground) {
+  return { address: "t6j", pid: 98777, argv: ["/bin/fish"], status, program: antigravity, foreground };
+}
+
+test("a tab shows its shell again once the agent quits, though the core keeps the report", () => {
+  const tab = { address: "t6j", title: "Terminal 1" };
+  const running = shellWith("working", { pid: 99001, name: "agy", argv: ["agy"] });
+  assert.equal(tabName(tab, running), "Antigravity");
+  assert.equal(tabProgram(running), antigravity);
+  assert.equal(liveStatus(running), "working");
+
+  const quit = shellWith("idle", { pid: 98777, name: "fish", argv: ["/bin/fish"] });
+  assert.equal(tabName(tab, quit), "Terminal 1");
+  assert.equal(liveStatus(quit), null);
+  assert.deepEqual(tabProgram(quit), { key: "shell", name: "fish", icon: "icons/shell.svg", tint: true, tile: "#16241a", color: "#4ec95f", shell: true, agent: false });
+  const mine = { key: "shell", name: "zsh", icon: "my-icons/shell.svg", tint: true, tile: null, color: null, shell: true, agent: false };
+  assert.equal(tabProgram(quit, mine).icon, "my-icons/shell.svg", "the shell entry Herdr shows now wins");
+  assert.equal(tabProgram(quit, mine).name, "fish");
+
+  const execed = shellWith("working", { pid: 98777, name: "agy", argv: ["agy"] });
+  assert.equal(tabName(tab, execed), "Antigravity", "exec agy keeps the shell's pid, not its argv");
+  assert.equal(tabProgram(shellWith("idle", undefined)), antigravity, "no foreground yet: Herdr's word stands");
+  const fish = { key: "shell", name: "fish", icon: "icons/shell.svg", tint: true, shell: true, agent: false };
+  const plain = { address: "t7", pid: 5, argv: ["/bin/fish"], status: null, program: fish, foreground: { pid: 5, argv: ["/bin/fish"] } };
+  assert.equal(tabProgram(plain), fish);
+});
+
+test("an agent quitting mid-turn is no finish and keeps no spinner", () => {
+  const first = agentAlerts(null, [shellWith("working", { pid: 99001, argv: ["agy"] })], null);
+  const next = agentAlerts(first.statuses, [shellWith("working", { pid: 98777, argv: ["/bin/fish"] })], null);
+  assert.deepEqual(next.alerts, []);
+  assert.equal(next.statuses.t6j, null);
+  assert.equal(tabStatus(liveStatus(shellWith("working", { pid: 98777, argv: ["/bin/fish"] })), false), null);
 });
 
 test("the mod draws the window's border around the terminal, inside pane-card corners", () => {

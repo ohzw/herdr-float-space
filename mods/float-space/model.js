@@ -105,7 +105,7 @@ export function agentAlerts(previous, terminals, lookingAt) {
   const alerts = [];
   const needs = status => status === "blocked" || status === "error";
   for (const terminal of terminals) {
-    const now = terminal.status ?? null;
+    const now = liveStatus(terminal);
     statuses[terminal.address] = now;
     const before = previous?.[terminal.address];
     if (before === undefined || before === now || terminal.address === lookingAt) continue;
@@ -121,7 +121,7 @@ export function agentAlerts(previous, terminals, lookingAt) {
 // person again clears it. A terminal a lagging snapshot doesn't list keeps its
 // finish but doesn't light the dot.
 export function unseenFinishes(unseen, alerts, terminals, showing) {
-  const live = new Map(terminals.map(terminal => [terminal.address, terminal.status ?? null]));
+  const live = new Map(terminals.map(terminal => [terminal.address, liveStatus(terminal)]));
   const busy = status => status === "working" || status === "blocked" || status === "error";
   const finished = alerts.filter(alert => alert.kind === "done").map(alert => alert.address);
   const pending = [...new Set([...(unseen ?? []), ...finished])]
@@ -179,7 +179,39 @@ export function shownTerminal(state) {
 
 // Agents show their own name, as in Herdr's tab bar; shells keep their tab title.
 export function tabName(tab, terminal) {
-  return terminal?.program?.agent ? terminal.program.name : tab.title;
+  return terminal?.program?.agent && !agentLeft(terminal) ? terminal.program.name : tab.title;
+}
+
+function sameWords(a, b) {
+  return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((word, i) => word === b[i]);
+}
+
+// The core keeps an agent's last report after the agent quits, and Herdr goes
+// on showing the terminal as that agent (Antigravity, idle, over a bare fish).
+// The terminal's own shell back in the foreground, the same process with the
+// same argv, means the agent is gone. `exec agent` keeps the pid, not the argv.
+export function agentLeft(terminal) {
+  const front = terminal?.foreground;
+  return Boolean(terminal?.program?.agent)
+    && front?.pid != null && front.pid === terminal.pid && sameWords(front.argv, terminal.argv);
+}
+
+// Herdr's status word for a terminal, or none once its agent left.
+export function liveStatus(terminal) {
+  return agentLeft(terminal) ? null : terminal?.status ?? null;
+}
+
+// Herdr's built-in shell entry (defaults/programs.json), for when no listed
+// terminal shows the person's own.
+const SHELL = { key: "shell", name: "Shell", icon: "icons/shell.svg", tint: true, tile: "#16241a", color: "#4ec95f" };
+
+// How a tab draws its terminal: Herdr's program, or the shell again once the
+// agent left. `shell` is the shell entry another terminal shows, so a
+// programs.json override of it applies here too.
+export function tabProgram(terminal, shell) {
+  if (!agentLeft(terminal)) return terminal?.program ?? null;
+  const name = terminal.foreground.name || String(terminal.argv[0] ?? "").split(/[\\/]/).pop() || "Shell";
+  return { ...(shell ?? SHELL), name, shell: true, agent: false };
 }
 
 // `generation` tells the header which mount it belongs to, so it can tell a
