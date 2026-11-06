@@ -219,7 +219,14 @@ export default class FloatSpace extends View {
         this.sliders[key] = slider;
       }
     } else if (this.role === "notes") {
-      this.notes = TextareaState.new({ value: readState(shared(STATE_KEY)).notes, placeholder: "Notes shared across your spaces…", rows: 10 });
+      this.notes = TextareaState.new({ value: readState(shared(STATE_KEY)).notes, placeholder: "Notes shared across your spaces…" });
+      // Auto grow pinned at 10 rows keeps the old size (at least 10 rows,
+      // filling the window) but scrolls the way a terminal does. The plain
+      // mode, once 24 rows fit, keeps the caret 3 rows above the bottom and
+      // clamps only after painting: Enter on the last line drew the text 2
+      // rows too high for a frame, then dropped it back. In auto grow the
+      // caret may reach the last row and the text never scrolls past its end.
+      this.notes.set_auto_grow(10, 10);
       // Shared state re-renders every mod in the app: save once typing pauses,
       // and on close (switching tabs, hiding, reloading).
       this.notes.on("change", (_e, cx) => {

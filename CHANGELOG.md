@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Notes no longer jumps when you press Enter at the bottom: the text moves up
+  one row per new line, as in a terminal. Before, in a window tall enough for
+  24 rows, it went up three rows for a moment and then dropped back two.
 - The status-bar button shows a dot in Herdr's yellow when an agent finished
   and you haven't seen it yet. It stays until that tab shows in the open
   window.

@@ -35,6 +35,8 @@ their programs still running, returning the keyboard to the pane underneath.
 - **Notes** is a full-size textarea with 16px side and 14px vertical
   padding, in the terminals' font and size from Herdr's settings (JetBrains
   Mono 14 by default), placeholder "Notes shared across your spaces…".
+  Typing past the bottom scrolls one row at a time: the caret may sit on the
+  last row, and the text never scrolls past its end.
 - **Window size**, a 280px popup on `popover` opened under its button, 14px
   padding, 10px gaps, 12px type:
   - "Window size" in medium weight.
@@ -260,6 +262,12 @@ their programs still running, returning the keyboard to the pane underneath.
   bounds.
 - `setShared` redraws every mod in the app: save Notes after a pause, never
   write unchanged state, and keep the window's runtime state in memory.
+- Notes' textarea is `set_auto_grow(10, 10)`, not `rows: 10`. Both give at
+  least 10 rows that fill the window, but the plain mode, once 24 rows fit,
+  keeps the caret 3 rows above the bottom and clamps the scroll only after
+  painting, so Enter on the last line drew the text 2 rows too high for a
+  frame and then dropped it back. Its scrollbar is the base textarea's own;
+  a mod can't restyle it.
 - The button's dot, the tabs' done dots and the unseen finishes live in that
   memory, not in Herdr's live data, so Herdr doesn't redraw for them: after
   each check the header and the button compare the memory's `marks`
