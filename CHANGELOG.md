@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Removed the bottom-right resize arrow without changing its pointer target.
+- Lowered the minimum width from 20% to 10% and minimum height from 30% to
+  15%, shared by drag resizing, sliders, and saved-state normalization.
 - Added resize targets on all four edges and corners in this fork, with
   directional pointer cursors. A transparent tracking overlay previews the
   new bounds; release applies them once, and Escape cancels.

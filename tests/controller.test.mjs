@@ -237,7 +237,7 @@ test("live ownership requires both labels, local address and running state", () 
 test("missing and invalid window sizes become bounded usable values", () => {
   assert.deepEqual(readState({ notes: "legacy draft" }).size, DEFAULT_SIZE);
   const state = readState({ size: { width: NaN, height: -1, notes: 100 }, notes: "draft" });
-  assert.deepEqual(state.size, { width: DEFAULT_SIZE.width, height: 0.30 });
+  assert.deepEqual(state.size, { width: DEFAULT_SIZE.width, height: 0.15 });
   assert.equal(state.notes, "draft");
 });
 
@@ -798,11 +798,11 @@ test("both diagonal orientations clamp size without moving the opposite corner",
   assert.deepEqual(dragGeometry({ ...resizeStart, direction: "se" }, { x: 10000, y: 10000 }),
     { size: { width: 0.75, height: 0.8 }, position: { x: 250, y: 160 } });
   assert.deepEqual(dragGeometry({ ...resizeStart, direction: "se" }, { x: -10000, y: -10000 }),
-    { size: { width: 0.2, height: 0.3 }, position: { x: 250, y: 160 } });
+    { size: { width: 0.1, height: 0.15 }, position: { x: 250, y: 160 } });
   assert.deepEqual(dragGeometry({ ...resizeStart, direction: "nw" }, { x: -10000, y: -10000 }),
     { size: { width: 0.75, height: 0.8 }, position: { x: 0, y: 0 } });
   assert.deepEqual(dragGeometry({ ...resizeStart, direction: "nw" }, { x: 10000, y: 10000 }),
-    { size: { width: 0.2, height: 0.3 }, position: { x: 550, y: 400 } });
+    { size: { width: 0.1, height: 0.15 }, position: { x: 650, y: 520 } });
 });
 
 test("a dropped resize retains terminal ownership, selection and notes across reopen", async () => {

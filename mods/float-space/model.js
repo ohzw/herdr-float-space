@@ -1,6 +1,7 @@
 export const STATE_KEY = "float-space.v1";
 export const MAX_TERMINALS = 12;
 export const DEFAULT_SIZE = { width: 0.50, height: 0.60 };
+export const MIN_SIZE = { width: 0.10, height: 0.15 };
 export const RESIZE_BORDER = 6;
 export const HEADER_HEIGHT = 30;
 // One click sizes: a small window for notes or a quick command, the default,
@@ -18,8 +19,8 @@ function fraction(value, fallback, min, max) {
 
 export function readSize(value) {
   return {
-    width: fraction(value?.width, DEFAULT_SIZE.width, 0.20, 0.95),
-    height: fraction(value?.height, DEFAULT_SIZE.height, 0.30, 0.95),
+    width: fraction(value?.width, DEFAULT_SIZE.width, MIN_SIZE.width, 0.95),
+    height: fraction(value?.height, DEFAULT_SIZE.height, MIN_SIZE.height, 0.95),
   };
 }
 
@@ -37,9 +38,9 @@ export function dragGeometry(start, pointer) {
     return [negative ? end - next * full : origin, next];
   }
   const [x, width] = axis(position.x, size.width, viewport.width, pointer.x - down.x,
-    direction.includes("w"), direction.includes("e"), 0.20);
+    direction.includes("w"), direction.includes("e"), MIN_SIZE.width);
   const [y, height] = axis(position.y, size.height, viewport.height, pointer.y - down.y,
-    direction.includes("n"), direction.includes("s"), 0.30);
+    direction.includes("n"), direction.includes("s"), MIN_SIZE.height);
   return { size: { width, height }, position: { x, y } };
 }
 

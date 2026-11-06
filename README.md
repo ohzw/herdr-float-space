@@ -59,6 +59,8 @@ It uses the desktop mod API without changing the Herdr binary.
   the top or left. The terminal stays running and Notes are preserved.
   **Escape** cancels. The pointer can leave the scratch window while it
   remains inside Herdr.
+  The minimum is 10% width and 15% height, for both dragging and sliders.
+  Resize targets have no arrow icon; the header's size settings button remains.
 - **−** hides the window and leaves shells and their programs running. The
   selected tab's **×** ends its terminal at once, like closing a tab in
   Herdr. When a terminal ends, the window shows the next tab, or Notes after

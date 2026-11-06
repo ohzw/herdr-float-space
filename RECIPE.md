@@ -45,7 +45,7 @@ their programs still running, returning the keyboard to the pane underneath.
     11px `dim` size: Small 20 × 50, Normal 50 × 60, Large 85 × 88. The one
     matching the current size has an `accent` outline on `selected`; the
     others an `input` outline on `raised`.
-  - Width (20–95%) and Height (30–95%), each a label with its value ("50%",
+  - Width (10–95%) and Height (15–95%), each a label with its value ("50%",
     `muted`) on the right and a native slider below: a 4px groove in
     `border`, the filled part in `accent`, a 12px `foreground` thumb centered
     on the groove.
@@ -133,12 +133,13 @@ their programs still running, returning the keyboard to the pane underneath.
   current position.
 - **Drag resizing**: press any edge or corner. Top and side targets are
   6px wide; the bottom target is 18px tall. The outer 24px of each
-  horizontal band resizes diagonally. Cursors show the resize direction.
+  horizontal band resizes diagonally. Cursors show the resize direction;
+  the bands have no arrow icon.
   A transparent app-sized overlay tracks movement beyond the scratch window.
   It draws an accent outline and percentage label without rebuilding the
   terminal. Release inside Herdr applies the size once; Escape cancels.
   A fresh press or losing app focus also cancels the tracker. Size changes
-  use 1% steps, with the existing minimums and the available viewport space.
+  use 1% steps, a minimum width of 10% and height of 15%, and the available viewport space.
   Only grabbed axes change; the opposite edge or corner stays fixed.
   North and west resizing update the top-left position as well as the size.
 - Pressing on free header space and dragging moves the window; Herdr keeps

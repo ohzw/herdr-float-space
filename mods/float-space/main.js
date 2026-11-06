@@ -1,7 +1,7 @@
 import { View, div, svg, image } from "gpui-kit";
 import { HoverCard, h_flex, v_flex, TextareaState, Textarea, SliderState, Slider, SliderTrack, SliderIndicator, SliderThumb } from "gpui-base";
 import { appHome, home, hc, focused, spaces, panes, terminals, shared, setShared, settings, props, theme, run, openOverlay, closeOverlay, notify, playSound, nextCommand, window as app } from "herdr";
-import { STATE_KEY, DEFAULT_SIZE, PRESETS, RESIZE_BORDER, HEADER_HEIGHT, readState, ownedTerminals, tabName, tabProgram, liveStatus, pressedInWindow, agentAlerts, unseenFinishes, tabStatus, startFolder, dragGeometry } from "./model.js";
+import { STATE_KEY, DEFAULT_SIZE, MIN_SIZE, PRESETS, RESIZE_BORDER, HEADER_HEIGHT, readState, ownedTerminals, tabName, tabProgram, liveStatus, pressedInWindow, agentAlerts, unseenFinishes, tabStatus, startFolder, dragGeometry } from "./model.js";
 import { FloatController } from "./controller.js";
 
 const WINDOW = "__herdr_float_space_window_v1";
@@ -232,8 +232,8 @@ export default class FloatSpace extends View {
       globalThis[SIZE_POPUP] = { overlay: this.copyProps.overlay };
       const size = readState(shared(STATE_KEY)).size;
       this.sliders = {};
-      for (const [key, min, max] of [["width", 20, 95], ["height", 30, 95]]) {
-        const slider = SliderState.new({ min, max, step: 1, value: Math.round(size[key] * 100) });
+      for (const [key, minimum] of Object.entries(MIN_SIZE)) {
+        const slider = SliderState.new({ min: Math.round(minimum * 100), max: 95, step: 1, value: Math.round(size[key] * 100) });
         slider.on("change", (_value, cx) => cx.notify());
         this.sliders[key] = slider;
       }
@@ -554,10 +554,7 @@ export default class FloatSpace extends View {
     return root.cursor_ns_resize().accessibility_label(`Resize ${side} edge`)
       .child(top ? frame.border_t(1).rounded_t(10) : frame.border_b(1).rounded_b(10))
       .child(resizeCursor(div().absolute().left(0).top(0).bottom(0).w(24), top ? "nw" : "sw"))
-      .child(resizeCursor(div().absolute().right(0).top(0).bottom(0).w(24), top ? "ne" : "se")
-        .when(!top, el => el.flex().items_center().justify_center().text_color(t.muted)
-          .tooltip("Drag any edge or corner to resize · release to apply")
-          .child(svg("mods/float-space/size.svg").size(12))));
+      .child(resizeCursor(div().absolute().right(0).top(0).bottom(0).w(24), top ? "ne" : "se"));
   }
 
   // The terminals' font and size from Herdr's settings, so Notes reads like the

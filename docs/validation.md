@@ -42,6 +42,10 @@ screenshots, not inferred from Orca's unverified synthetic-input responses.
   northwest. The new placement applied instead of Herdr's saved old origin.
 - Notes survived that resize and hide or reopen. The terminal kept its
   address, PID, and creation timestamp.
+- After lowering the limits, dragged past the minimum and observed 10% ×
+  15% in saved state and the actual terminal window. Opened size settings:
+  both sliders showed the new minimum at their left endpoints, with no errors.
+  Inspected the bottom-right corner to confirm the arrow was absent.
 
 Not exercised with live input: Escape cancellation during a held drag,
 focus-loss cancellation, release outside the app, app restart, or drag
